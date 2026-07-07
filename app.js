@@ -1,4 +1,10 @@
 // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+// Спасательный круг для отладки
+window.onerror = function(msg, url, line, col, error) {
+    alert('Ошибка в скрипте: ' + msg + ' на строке ' + line);
+    return true;
+};
+alert('Скрипт запущен! Проверка!');
 let map, routeLine;
 let isRecording = false, isPaused = false, isManualMode = false, isSplash = true;
 let points = [], timerInterval, elapsedSeconds = 0;
