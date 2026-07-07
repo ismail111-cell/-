@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Вело-Трекер Казань</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Ключ Яндекса -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=49779049-bf30-4cf1-b80f-a5bb5ddff0ff&lang=ru_RU"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <!-- ================= СТАРТОВЫЙ ЭКРАН (SPLASH) ================= -->
+    <div id="splash-screen">
+        <div class="splash-content glass">
+            <div class="splash-logo">🚴</div>
+            <h1>Вело-Трекер</h1>
+            <p class="splash-sub">Твой личный помощник в Казани</p>
+            
+            <div class="splash-menu">
+                <button class="main-btn neon-green" onclick="enterApp()">🚀 Крутим педали!</button>
+                <button class="secondary-btn" onclick="openStatsFromSplash()">📊 Моя статистика</button>
+                <button class="secondary-btn" onclick="openSettingsFromSplash()">⚙️ Настройки</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ОСНОВНОЕ ПРИЛОЖЕНИЕ ================= -->
+    <div id="app-container" style="display:none;">
+        <div id="map"></div>
+
+        <!-- Табло -->
+        <div id="top-panel">
+            <div class="stat-block"><span class="label" data-lang="speed">Скорость</span><span id="speed-display">0.0</span><span class="unit">км/ч</span></div>
+            <div class="stat-block"><span class="label" data-lang="distance">Дистанция</span><span id="distance-display">0.00</span><span class="unit">км</span></div>
+            <div class="stat-block"><span class="label" data-lang="time">Время</span><span id="time-display">00:00</span></div>
+            <div class="stat-block total-odo"><span class="label" data-lang="total_km">Всего км</span><span id="odo-display">0</span></div>
+        </div>
+
+        <!-- Погода и улица -->
+        <div id="weather-panel" onclick="updateWeather()">
+            <span id="weather-icon">☀️</span>
+            <span id="weather-temp">--°C</span>
+        </div>
+        <div id="street-name">Казань</div>
+
+        <!-- Кнопки управления (Правый нижний угол) -->
+        <div id="bottom-controls">
+            <button id="btn-start" class="ctrl-btn neon-green" onclick="startRecording()">▶</button>
+            <button id="btn-pause" class="ctrl-btn yellow" onclick="togglePause()" style="display:none;">⏸</button>
+            <button id="btn-stop" class="ctrl-btn red" onclick="stopRecording()" style="display:none;">⏹</button>
+            <button id="btn-manual" class="ctrl-btn secondary-btn" onclick="enableManualDraw()">✏️</button>
+            <button id="btn-undo" class="ctrl-btn secondary-btn" onclick="undoLastPoint()" style="display:none;">↩️</button>
+            <button id="btn-clear" class="ctrl-btn secondary-btn" onclick="clearManualRoute()" style="display:none;">🗑️</button>
+            <button id="btn-save" class="ctrl-btn secondary-btn" onclick="saveRoute()" style="display:none;">💾</button>
+        </div>
+
+        <!-- Кнопка Меню (Правый верхний угол) -->
+        <div id="menu-btn" onclick="toggleSidebar()">☰</div>
+    </div>
+
+    <!-- ================= БОКОВАЯ ПАНЕЛЬ (ГЛАВНАЯ) ================= -->
+    <div id="main-sidebar" class="sidebar hidden">
+        <div class="sidebar-header">
+            <h2>Меню</h2>
+            <button class="close-btn" onclick="toggleSidebar()">✖</button>
+        </div>
+        <div class="sidebar-menu">
+            <button class="menu-item" onclick="openStatsFromSidebar()">📊 Моя статистика</button>
+            <button class="menu-item" onclick="openSettings()">⚙️ Настройки</button>
+            <button class="menu-item red-text" onclick="exitToSplash()">🚪 Выйти на стартовый</button>
+        </div>
+    </div>
+
+    <!-- ================= БОКОВАЯ ПАНЕЛЬ (НАСТРОЙКИ / ГЛУБИНА) ================= -->
+    <div id="settings-sidebar" class="sidebar hidden">
+        <div class="sidebar-header">
+            <button class="back-btn" onclick="closeSettings()">◀ Назад</button>
+            <h2>Настройки</h2>
+            <button class="close-btn" onclick="closeSettings()">✖</button>
+        </div>
+        <div id="settings-menu-list" class="sidebar-menu">
+            <button class="menu-item" onclick="openSettingsTab('profile')">👤 Мой профиль</button>
+            <button class="menu-item" onclick="openSettingsTab('map')">🗺️ Карта и отображение</button>
+            <button class="menu-item" onclick="openSettingsTab('interface')">🎨 Интерфейс и темы</button>
+            <button class="menu-item" onclick="openSettingsTab('sound')">🔊 Звук и голос</button>
+            <button class="menu-item" onclick="openSettingsTab('training')">🎯 Тренировки и мотивация</button>
+            <button class="menu-item" onclick="openSettingsTab('weather')">🌦️ Погода и окружение</button>
+            <button class="menu-item" onclick="openSettingsTab('history')">📂 История и данные</button>
+            <button class="menu-item" onclick="openSettingsTab('achievements')">🏆 Достижения</button>
+            <button class="menu-item" onclick="openSettingsTab('integrations')">🔗 Интеграции</button>
+            <button class="menu-item" onclick="openSettingsTab('system')">⚙️ Система и безопасность</button>
+        </div>
+        
+        <!-- Контентные зоны вкладок (скрыты по умолчанию) -->
+        <div id="settings-tab-content" class="settings-content hidden"></div>
+    </div>
+
+    <!-- ================= БОКОВАЯ ПАНЕЛЬ (СТАТИСТИКА) ================= -->
+    <div id="stats-sidebar" class="sidebar hidden">
+        <div class="sidebar-header">
+            <button class="back-btn" onclick="closeStats()">◀ Назад</button>
+            <h2 data-lang="history">Статистика</h2>
+            <button class="close-btn" onclick="closeStats()">✖</button>
+        </div>
+        <div id="stats-content">
+            <div id="stats-summary" class="stats-cards"></div>
+            <div id="history-list" class="history-scroll"></div>
+        </div>
+    </div>
+
+    <!-- ================= МОДАЛЬНОЕ ОКНО ИТОГОВ ================= -->
+    <div id="finish-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <h2 data-lang="ride_summary">Итоги поездки</h2>
+            <div id="summary-data"></div>
+            <div id="height-chart-container"><canvas id="height-chart"></canvas></div>
+            <div class="modal-actions">
+                <button onclick="shareScreenshot()">📸 Поделиться</button>
+                <button onclick="closeModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TOAST УВЕДОМЛЕНИЯ ================= -->
+    <div id="toast" class="toast hidden">Сообщение</div>
+
+    <script src="i18n.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
