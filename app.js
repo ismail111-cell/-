@@ -48,7 +48,6 @@ const MOTIVATION = {
 // --- ЗАГРУЗКА КАРТЫ ---
 ymaps.ready(function() {
     map = new ymaps.Map('map', { center: [55.7961, 49.1064], zoom: 13, controls: ['zoomControl'] });
-    // Добавляем кнопку геолокации
     map.controls.add('geolocationControl', { float: 'left' });
 });
 
@@ -59,7 +58,6 @@ function enterApp() {
     isSplash = false;
     applySettings();
     updateHistoryUI();
-    // Ждём 0.4 секунды, чтобы карта гарантированно загрузилась, иначе вылетит ошибка
     setTimeout(() => {
         if (map && map.container) {
             try { map.container.fitToViewport(); } catch(e) {}
@@ -73,6 +71,34 @@ function exitToSplash() {
     document.getElementById('splash-screen').style.display = 'flex';
     isSplash = true;
     showToast('До новых встреч, гонщик!');
+}
+
+// --- ИЗ СПЛАША В НАСТРОЙКИ/СТАТИСТИКУ ---
+function openStatsFromSplash() {
+    document.getElementById('splash-screen').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    isSplash = false;
+    applySettings();
+    updateHistoryUI();
+    setTimeout(() => {
+        if (map && map.container) {
+            try { map.container.fitToViewport(); } catch(e) {}
+        }
+        openStatsFromSidebar();
+    }, 400);
+}
+function openSettingsFromSplash() {
+    document.getElementById('splash-screen').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    isSplash = false;
+    applySettings();
+    updateHistoryUI();
+    setTimeout(() => {
+        if (map && map.container) {
+            try { map.container.fitToViewport(); } catch(e) {}
+        }
+        openSettings();
+    }, 400);
 }
 
 // --- НАВИГАЦИЯ ПО МЕНЮ И НАСТРОЙКАМ ---
@@ -195,7 +221,6 @@ function saveSettingsTab(tab) {
 
 function toggleMapLayer(layer) {
     if(!map) return;
-    // Логика смены слоя для Яндекса (используем map.setType)
     map.setType(layer === 'satellite' ? 'yandex#satellite' : 'yandex#map');
 }
 
@@ -206,6 +231,12 @@ function applySettings() {
     document.body.classList.toggle('light-theme', s.theme === 'light');
     document.getElementById('route-color').value = s.color;
     applyLanguage();
+}
+function applyLanguage() {
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.dataset.lang;
+        el.textContent = t(key);
+    });
 }
 
 // --- ЗАПИСЬ GPS ---
@@ -221,8 +252,6 @@ function startRecording() {
 
     if(userSettings.startSound) playBeep();
     if(userSettings.vibration) navigator.vibrate(50);
-    
-    // Авто-погода
     if(userSettings.autoWeather) updateWeather();
 
     startTime = Date.now();
@@ -240,15 +269,12 @@ function startRecording() {
                 const d = haversine(last.lat, last.lng, lat, lng);
                 totalDistance += d;
                 document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
-                // Авто-пауза
                 if(userSettings.autoPause && currentSpeed < 0.5 && elapsedSeconds > 10 && !isPaused) togglePause(true);
                 else if(userSettings.autoPause && currentSpeed > 2 && isPaused) togglePause(false);
             }
             points.push({lat, lng, alt: pos.coords.altitude || 0});
             drawRoute();
-            // Улица
             if(userSettings.streetView) geocodeStreet(lat, lng);
-            // Мотивация
             checkMotivation();
         },
         (err) => console.warn(err),
@@ -425,4 +451,152 @@ function updateWeather() {
         try {
             const resp = await fetch(url); const data = await resp.json();
             document.getElementById('weather-temp').textContent = Math.round(data.main.temp) + '°C';
-    
+            document.getElementById('weather-icon').textContent = data.weather[0].icon.includes('n') ? '🌙' : data.weather[0].icon.includes('01') ? '☀️' : '☁️';
+        } catch(e) { document.getElementById('weather-temp').textContent = '22°C'; }
+    });
+}
+
+function geocodeStreet(lat, lng) {
+    ymaps.geocode([lat, lng]).then(res => {
+        const first = res.geoObjects.get(0);
+        if(first) {
+            const name = first.getThoroughfare() || first.getAddressLine();
+            document.getElementById('street-name').textContent = name || 'Казань';
+        }
+    });
+}
+
+// --- КАЛОРИИ И МАТЕМАТИКА ---
+function calcCalories(km, seconds) {
+    const weight = userSettings.weight || 70;
+    const hours = seconds / 3600;
+    const speed = hours > 0 ? km / hours : 0;
+    let met = 4.0;
+    if(speed > 20) met = 8.0; else if(speed > 15) met = 6.0; else if(speed > 10) met = 4.0; else met = 3.0;
+    return Math.round(met * weight * hours);
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371; const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180;
+    return 2 * R * Math.asin(Math.sqrt(Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2));
+}
+
+function formatTime(s) {
+    const m = Math.floor(s/60); const h = Math.floor(m/60);
+    return `${String(h).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+}
+
+// --- ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ---
+function updateTimer() {
+    if(isPaused) return;
+    elapsedSeconds++;
+    document.getElementById('time-display').textContent = formatTime(elapsedSeconds);
+}
+
+// --- ИСТОРИЯ И СТАТИСТИКА ---
+function updateHistoryUI() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
+    if(routeHistory.length === 0) { list.innerHTML = '<p style="opacity:0.5;text-align:center;">Маршрутов пока нет</p>'; return; }
+    [...routeHistory].reverse().forEach((r) => {
+        const div = document.createElement('div');
+        div.className = 'history-item'; div.style.borderLeftColor = r.color;
+        div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;">
+                <span>${r.date}</span>
+                <span>${r.distance.toFixed(1)} км</span>
+            </div>
+            <div style="font-size:12px;opacity:0.7;">${formatTime(r.time)} | ${r.avgSpeed.toFixed(1)} км/ч | ${r.calories} ккал</div>
+            <div style="font-size:11px;">${r.weather||''}</div>
+            <div style="margin-top:5px;display:flex;gap:5px;">
+                <button onclick="exportGPX(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">📤 GPX</button>
+                <button onclick="viewRoute(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">👁️</button>
+                <button onclick="deleteRoute(${r.id})" style="background:transparent;border:1px solid #ef4444;border-radius:8px;padding:4px 8px;color:#ef4444;">🗑️</button>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function viewRoute(id) {
+    const r = routeHistory.find(x=>x.id===id); if(!r) return;
+    closeStats();
+    points = r.points; drawRoute(); document.getElementById('distance-display').textContent = r.distance.toFixed(2);
+    showToast('Маршрут загружен');
+}
+
+function deleteRoute(id) {
+    if(confirm('Удалить этот маршрут?')) {
+        routeHistory = routeHistory.filter(r => r.id !== id);
+        localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
+        updateHistoryUI(); showToast('Маршрут удален');
+    }
+}
+
+function deleteSingleRoute() {
+    closeSettingsTab();
+    openStatsFromSidebar();
+}
+
+function deleteMultipleRoutes() { showToast('Выбор нескольких маршрутов будет в следующем обновлении!'); }
+function clearAllRoutes() {
+    if(confirm('Очистить всю историю?')) {
+        routeHistory = []; localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
+        updateHistoryUI(); showToast('История очищена');
+    }
+}
+function exportAllGPX() { showToast('Экспорт всех GPX появится в следующей версии!'); }
+function importGPX() { showToast('Импорт GPX появится в следующей версии!'); }
+
+function exportGPX(id) {
+    const r = routeHistory.find(x=>x.id===id); if(!r) return;
+    let gpx = `<?xml version="1.0"?><gpx><trk><name>${r.date}</name><trkseg>`;
+    r.points.forEach(p => { gpx += `<trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>`; });
+    gpx += `</trkseg></trk></gpx>`;
+    const blob = new Blob([gpx], {type:'application/gpx+xml'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `route_${r.id}.gpx`; a.click();
+}
+
+// --- СТАТИСТИКА В МЕНЮ ---
+function openStatsFromSidebar() {
+    toggleSidebar();
+    document.getElementById('stats-sidebar').classList.remove('hidden');
+    document.getElementById('stats-content').style.display = 'block';
+    const stats = document.getElementById('stats-summary');
+    const totalKm = routeHistory.reduce((sum, r) => sum + r.distance, 0);
+    const totalCal = routeHistory.reduce((sum, r) => sum + r.calories, 0);
+    const avgSpeedAll = routeHistory.length>0 ? (routeHistory.reduce((s,r)=>s+r.avgSpeed,0)/routeHistory.length) : 0;
+    const lastRide = routeHistory.length>0 ? routeHistory[routeHistory.length-1] : null;
+    stats.innerHTML = `
+        <div class="stat"><span>${totalKm.toFixed(0)}</span>${t('km')} всего</div>
+        <div class="stat"><span>${routeHistory.length}</span>Поездок</div>
+        <div class="stat"><span>${totalCal}</span>Ккал</div>
+        <div class="stat"><span>${avgSpeedAll.toFixed(1)}</span>Ср. скорость</div>
+        <div class="stat"><span>${lastRide ? lastRide.distance.toFixed(1) : 0}</span>Последний</div>
+    `;
+    updateHistoryUI();
+}
+function closeStats() { document.getElementById('stats-sidebar').classList.add('hidden'); }
+
+// --- ВСПОМОГАТЕЛЬНЫЕ ---
+function showToast(msg) {
+    const toast = document.getElementById('toast'); toast.textContent = msg;
+    toast.classList.remove('hidden'); clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.classList.add('hidden'), 2500);
+}
+function closeModal() { document.getElementById('finish-modal').classList.add('hidden'); }
+function shareScreenshot() {
+    html2canvas(document.getElementById('map')).then(canvas => {
+        const a = document.createElement('a'); a.download = 'my_ride.png'; a.href = canvas.toDataURL('image/png'); a.click();
+    });
+}
+function resetApp() {
+    if(confirm('Сбросить все настройки и данные?')) {
+        localStorage.clear(); location.reload();
+    }
+}
+// --- ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ---
+window.onload = function() {
+    applySettings();
+    document.getElementById('odo-display').textContent = odoTotal.toFixed(0);
+};
