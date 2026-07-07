@@ -59,9 +59,13 @@ function enterApp() {
     isSplash = false;
     applySettings();
     updateHistoryUI();
-    setTimeout(() => map.container.fitToViewport(), 100);
+    // Ждём 0.4 секунды, чтобы карта гарантированно загрузилась, иначе вылетит ошибка
+    setTimeout(() => {
+        if (map && map.container) {
+            try { map.container.fitToViewport(); } catch(e) {}
+        }
+    }, 400);
 }
-
 function exitToSplash() {
     if(isRecording) stopRecording();
     toggleSidebar();
