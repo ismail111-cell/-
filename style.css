@@ -16,7 +16,6 @@ body.light-theme {
 body { background: #121212; color: var(--text-color); overflow: hidden; height: 100vh; width: 100vw; }
 body.light-theme { background: #f5f7fa; }
 
-/* Glassmorphism */
 .glass {
     background: var(--bg-glass);
     backdrop-filter: blur(16px);
@@ -26,7 +25,7 @@ body.light-theme { background: #f5f7fa; }
     box-shadow: var(--shadow);
 }
 
-/* ========== SPLASH SCREEN ========== */
+/* SPLASH SCREEN */
 #splash-screen {
     position: fixed; top:0; left:0; width:100%; height:100%; z-index:999;
     display:flex; justify-content:center; align-items:center;
@@ -37,7 +36,6 @@ body.light-theme #splash-screen { background: radial-gradient(circle at center, 
 .splash-logo { font-size: 68px; margin-bottom: 5px; animation: pulse 2s infinite; }
 .splash-sub { opacity:0.7; margin-bottom: 25px; font-size: 14px; }
 .splash-menu { display: flex; flex-direction: column; gap: 20px; width: 100%; }
-
 .splash-menu button {
     width: 100%; padding: 18px 10px; border-radius: 35px; font-size: 20px; font-weight: 700;
     border: none; cursor: pointer; touch-action: manipulation;
@@ -45,32 +43,15 @@ body.light-theme #splash-screen { background: radial-gradient(circle at center, 
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 .splash-menu button:active { transform: scale(0.95); }
-
-/* Основная кнопка - яркий неон */
-.splash-menu .main-btn {
-    background: linear-gradient(145deg, #00ffcc, #00cc99);
-    color: #0f172a;
-    box-shadow: 0 0 25px rgba(0, 255, 204, 0.3);
-}
-
-/* Второстепенные кнопки - стеклянные с подсветкой */
-.splash-menu .secondary-btn {
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    color: #ffffff; border: 1px solid rgba(255,255,255,0.25);
-}
-body.light-theme .splash-menu .secondary-btn {
-    background: rgba(0, 0, 0, 0.06);
-    color: #121212; border: 1px solid rgba(0,0,0,0.1);
-}
-
+.splash-menu .main-btn { background: linear-gradient(145deg, #00ffcc, #00cc99); color: #0f172a; box-shadow: 0 0 25px rgba(0, 255, 204, 0.3); }
+.splash-menu .secondary-btn { background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(6px); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); }
+body.light-theme .splash-menu .secondary-btn { background: rgba(0, 0, 0, 0.06); color: #121212; border: 1px solid rgba(0,0,0,0.1); }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-/* ========== MAIN APP ========== */
+/* MAIN APP */
 #app-container { width: 100%; height: 100%; position: relative; }
 #map { width: 100%; height: 100%; position: absolute; top:0; left:0; z-index:0; }
 
-/* Top Panel */
 #top-panel {
     position: absolute; top: 12px; left: 12px; right: 12px;
     padding: 10px 8px; display: flex; justify-content: space-around; z-index:10;
@@ -81,7 +62,6 @@ body.light-theme .splash-menu .secondary-btn {
 .stat-block .unit { font-size: 9px; }
 .total-odo { border-left: 1px solid rgba(255,255,255,0.15); padding-left: 8px; }
 
-/* Weather & Street */
 #weather-panel {
     position: absolute; top: 85px; right: 12px;
     padding: 6px 12px; z-index:10; cursor:pointer; font-size: 16px; display:flex; gap:6px; align-items:center;
@@ -91,7 +71,6 @@ body.light-theme .splash-menu .secondary-btn {
     background: var(--bg-glass); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 12px;
 }
 
-/* Bottom Controls (Right corner) */
 #bottom-controls {
     position: absolute; bottom: 20px; right: 20px; z-index:10;
     display: flex; flex-direction: column; gap: 12px; align-items: center;
@@ -107,14 +86,13 @@ body.light-theme .splash-menu .secondary-btn {
 .red { background: #ef4444; }
 .secondary-btn { background: var(--bg-glass); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); }
 
-/* Menu Button (Top Right) */
 #menu-btn {
     position: absolute; top: 12px; right: 12px; width: 44px; height: 44px;
     display: flex; justify-content: center; align-items: center;
     font-size: 28px; border-radius: 50%; cursor: pointer; z-index:10;
 }
 
-/* ========== SIDEBARS ========== */
+/* SIDEBARS */
 .sidebar {
     position: absolute; top:0; right:0; width: 100%; max-width: 380px; height: 100%;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); z-index: 20;
@@ -123,7 +101,7 @@ body.light-theme .splash-menu .secondary-btn {
 }
 .sidebar:not(.hidden) { transform: translateX(0); }
 body.light-theme .sidebar { background: rgba(255,255,255,0.85); }
-.sidebar.hidden { display: flex; transform: translateX(100%); } /* Ensure display flex for transition */
+.sidebar.hidden { display: flex; transform: translateX(100%); }
 
 .sidebar-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .back-btn, .close-btn { background:none; border:none; color:var(--text-color); font-size:24px; cursor:pointer; padding:0 10px; }
@@ -136,7 +114,6 @@ body.light-theme .sidebar { background: rgba(255,255,255,0.85); }
 .menu-item:active { transform: scale(0.98); }
 .red-text { color: #ef4444 !important; }
 
-/* Settings Tab Content */
 .settings-content { padding: 20px; overflow-y: auto; flex:1; display: flex; flex-direction: column; gap:15px; }
 .settings-content input, .settings-content select {
     padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);
@@ -146,19 +123,19 @@ body.light-theme .settings-content input, body.light-theme .settings-content sel
 .settings-content label { font-weight:500; margin-top:5px; display:block; }
 .settings-content button.save-btn { background: var(--accent); color:#121212; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; margin-top:10px; }
 
-/* Stats History */
 .stats-cards { padding: 10px 20px; display: flex; flex-wrap: wrap; gap:10px; }
 .stats-cards .stat { background: var(--bg-glass); padding:10px; border-radius:12px; flex:1; min-width:70px; text-align:center; }
 .stats-cards .stat span { font-size:22px; font-weight:bold; display:block; }
 .history-scroll { padding: 10px 20px; overflow-y: auto; flex:1; }
 .history-item { padding:12px; margin-bottom:10px; border-radius:12px; border-left:4px solid #00cc99; cursor:pointer; background:var(--bg-glass); }
 
-/* ========== MODAL & TOAST ========== */
+/* MODAL & TOAST */
 .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:30; display:flex; justify-content:center; align-items:center; }
 .modal.hidden { display:none; }
 .modal-content { padding:25px; max-width:400px; width:90%; max-height:90vh; overflow-y:auto; text-align:center; }
 .modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:center; }
 .modal-actions button { flex:1; padding:10px; border-radius:12px; border:none; font-weight:bold; cursor:pointer; background:var(--bg-glass); color:var(--text-color); }
+#height-chart-container { margin: 15px 0; height: 100px; background: #222; border-radius: 10px; }
 
 .toast {
     position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
@@ -167,7 +144,6 @@ body.light-theme .settings-content input, body.light-theme .settings-content sel
 }
 .toast.hidden { opacity:0; bottom:60px; pointer-events:none; }
 
-/* ========== ADAPTIVE ========== */
 @media (min-width: 800px) {
     #top-panel { max-width: 600px; left:50%; transform:translateX(-50%); }
     #bottom-controls { right:40px; bottom:40px; }
