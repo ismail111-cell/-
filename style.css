@@ -1,114 +1,174 @@
+/* ==================== ОСНОВНЫЕ ПЕРЕМЕННЫЕ ==================== */
 :root {
-    --bg-glass: rgba(20, 20, 30, 0.65);
+    --bg-glass: rgba(18, 18, 25, 0.6);
     --text-color: #ffffff;
-    --accent: #00ffcc;
-    --shadow: 0 8px 32px rgba(0,0,0,0.4);
-    --glass-border: 1px solid rgba(255,255,255,0.1);
-    --btn-size: 56px;
+    --accent-grad: linear-gradient(135deg, #00f5a0, #00d9f5);
+    --shadow: 0 10px 40px rgba(0,0,0,0.5);
+    --glass-border: 1px solid rgba(255,255,255,0.08);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --btn-primary-size: 64px;
+    --btn-secondary-size: 44px;
 }
 body.light-theme {
     --bg-glass: rgba(255, 255, 255, 0.75);
     --text-color: #1e1e2f;
-    --shadow: 0 8px 32px rgba(0,0,0,0.1);
+    --shadow: 0 10px 40px rgba(0,0,0,0.1);
     --glass-border: 1px solid rgba(0,0,0,0.05);
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-body { background: #121212; color: var(--text-color); overflow: hidden; height: 100vh; width: 100vw; }
+
+/* ==================== КОРРЕКЦИЯ ЭКРАНА (ФИКС КНОПОК) ==================== */
+body {
+    background: #121212;
+    color: var(--text-color);
+    overflow: hidden;
+    height: 100dvh; /* Используем динамическую высоту экрана вместо 100vh */
+    width: 100vw;
+}
 body.light-theme { background: #f5f7fa; }
 
+/* ==================== СТЕКЛЯННЫЙ ЭФФЕКТ ==================== */
 .glass {
     background: var(--bg-glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
     border: var(--glass-border);
     box-shadow: var(--shadow);
 }
 
-/* SPLASH SCREEN */
+/* ==================== СТАРТОВЫЙ ЭКРАН ==================== */
 #splash-screen {
-    position: fixed; top:0; left:0; width:100%; height:100%; z-index:999;
+    position: fixed; top:0; left:0; width:100%; height:100dvh; z-index:999;
     display:flex; justify-content:center; align-items:center;
     background: radial-gradient(circle at center, #1e293b, #0f172a);
 }
 body.light-theme #splash-screen { background: radial-gradient(circle at center, #e2e8f0, #cbd5e1); }
-.splash-content { padding: 30px 20px; text-align: center; max-width: 380px; width: 92%; }
-.splash-logo { font-size: 68px; margin-bottom: 5px; animation: pulse 2s infinite; }
-.splash-sub { opacity:0.7; margin-bottom: 25px; font-size: 14px; }
-.splash-menu { display: flex; flex-direction: column; gap: 20px; width: 100%; }
+.splash-content { padding: 40px 20px; text-align: center; max-width: 400px; width: 92%; }
+.splash-logo { font-size: 72px; margin-bottom: 10px; animation: pulse 2s infinite; }
+.splash-sub { opacity:0.7; margin-bottom: 30px; font-size: 15px; }
+.splash-menu { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 .splash-menu button {
-    width: 100%; padding: 18px 10px; border-radius: 35px; font-size: 20px; font-weight: 700;
+    width: 100%; padding: 18px 10px; border-radius: 40px; font-size: 18px; font-weight: 700;
     border: none; cursor: pointer; touch-action: manipulation;
     transition: transform 0.1s ease, box-shadow 0.2s; letter-spacing: 0.5px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-.splash-menu button:active { transform: scale(0.95); }
-.splash-menu .main-btn { background: linear-gradient(145deg, #00ffcc, #00cc99); color: #0f172a; box-shadow: 0 0 25px rgba(0, 255, 204, 0.3); }
-.splash-menu .secondary-btn { background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(6px); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); }
-body.light-theme .splash-menu .secondary-btn { background: rgba(0, 0, 0, 0.06); color: #121212; border: 1px solid rgba(0,0,0,0.1); }
+.splash-menu button:active { transform: scale(0.96); }
+.splash-menu .main-btn {
+    background: var(--accent-grad);
+    color: #0f172a;
+    box-shadow: 0 0 30px rgba(0, 245, 160, 0.3);
+}
+.splash-menu .secondary-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff; border: 1px solid rgba(255,255,255,0.15);
+}
+body.light-theme .splash-menu .secondary-btn { background: rgba(0, 0, 0, 0.05); color: #121212; border: 1px solid rgba(0,0,0,0.1); }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-/* MAIN APP */
-#app-container { width: 100%; height: 100%; position: relative; }
+/* ==================== КАРТА ==================== */
+#app-container { width: 100%; height: 100dvh; position: relative; }
 #map { width: 100%; height: 100%; position: absolute; top:0; left:0; z-index:0; }
 
+/* ==================== ВЕРХНЕЕ ТАБЛО ==================== */
 #top-panel {
-    position: absolute; top: 12px; left: 12px; right: 12px;
-    padding: 10px 8px; display: flex; justify-content: space-around; z-index:10;
+    position: absolute; top: 16px; left: 16px; right: 16px;
+    padding: 12px 10px; display: flex; justify-content: space-around; z-index:10;
+    background: var(--bg-glass); backdrop-filter: blur(16px);
+    border-radius: 20px; border: var(--glass-border); box-shadow: var(--shadow);
 }
 .stat-block { text-align: center; min-width: 50px; }
-.stat-block .label { font-size: 9px; opacity:0.6; display:block; }
-.stat-block span:not(.label):not(.unit) { font-size: 20px; font-weight:600; display:block; }
-.stat-block .unit { font-size: 9px; }
-.total-odo { border-left: 1px solid rgba(255,255,255,0.15); padding-left: 8px; }
+.stat-block .label { font-size: 9px; opacity:0.6; display:block; text-transform: uppercase; letter-spacing: 1px; }
+.stat-block span:not(.label):not(.unit) { font-size: 22px; font-weight:700; display:block; }
+.stat-block .unit { font-size: 9px; opacity:0.7; }
+.total-odo { border-left: 1px solid rgba(255,255,255,0.15); padding-left: 10px; }
 
+/* ==================== ПОГОДА И УЛИЦА ==================== */
 #weather-panel {
-    position: absolute; top: 85px; right: 12px;
-    padding: 6px 12px; z-index:10; cursor:pointer; font-size: 16px; display:flex; gap:6px; align-items:center;
+    position: absolute; top: 90px; right: 16px;
+    padding: 8px 14px; z-index:10; cursor:pointer; font-size: 16px; display:flex; gap:8px; align-items:center;
+    background: var(--bg-glass); backdrop-filter: blur(12px);
+    border-radius: 30px; border: var(--glass-border); box-shadow: var(--shadow);
 }
 #street-name {
-    position: absolute; top: 85px; left: 12px; z-index:10; font-size:12px; opacity:0.8;
-    background: var(--bg-glass); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 12px;
+    position: absolute; top: 90px; left: 16px; z-index:10; font-size: 13px; opacity:0.9;
+    background: var(--bg-glass); backdrop-filter: blur(12px); padding: 6px 14px; border-radius: 20px; border: var(--glass-border);
 }
 
+/* ==================== НИЖНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ (ОСТРОВ) ==================== */
 #bottom-controls {
-    position: absolute; bottom: 20px; right: 20px; z-index:10;
-    display: flex; flex-direction: column; gap: 12px; align-items: center;
+    position: fixed; /* fixed надёжнее absolute для навигации */
+    bottom: calc(20px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 12px 20px;
+    border-radius: 60px;
+    border: var(--glass-border);
+    box-shadow: var(--shadow);
+    z-index: 20;
 }
 .ctrl-btn {
-    width: var(--btn-size); height: var(--btn-size); border-radius: 50%; border: none;
-    font-size: 22px; color: #fff; cursor: pointer; box-shadow: var(--shadow);
-    transition: transform 0.1s ease;
+    border-radius: 50%; border: none; color: #fff; cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.2s;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 24px; font-weight: 400;
 }
 .ctrl-btn:active { transform: scale(0.92); }
-.neon-green { background: #00cc99; box-shadow: 0 0 20px rgba(0, 204, 153, 0.4); }
+
+/* Размеры кнопок */
+#btn-start, #btn-pause, #btn-stop {
+    width: var(--btn-primary-size); height: var(--btn-primary-size);
+    box-shadow: 0 0 20px rgba(0, 245, 160, 0.2);
+}
+.ctrl-btn.secondary-btn {
+    width: var(--btn-secondary-size); height: var(--btn-secondary-size);
+    font-size: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+body.light-theme .ctrl-btn.secondary-btn { background: rgba(0, 0, 0, 0.08); border: 1px solid rgba(0,0,0,0.08); }
+
+/* Градиент для главной кнопки */
+.neon-green { background: var(--accent-grad); color: #0f172a; }
 .yellow { background: #fbbf24; color: #1e293b; }
 .red { background: #ef4444; }
-.secondary-btn { background: var(--bg-glass); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); }
 
+/* ==================== КНОПКА МЕНЮ (ВЕРХНИЙ ПРАВЫЙ УГОЛ) ==================== */
 #menu-btn {
-    position: absolute; top: 12px; right: 12px; width: 44px; height: 44px;
+    position: absolute; top: 80px; right: 16px; width: 44px; height: 44px;
     display: flex; justify-content: center; align-items: center;
     font-size: 28px; border-radius: 50%; cursor: pointer; z-index:10;
+    background: var(--bg-glass); backdrop-filter: blur(12px);
+    border: var(--glass-border); box-shadow: var(--shadow);
 }
 
-/* SIDEBARS */
+/* ==================== БОКОВЫЕ МЕНЮ ==================== */
 .sidebar {
-    position: absolute; top:0; right:0; width: 100%; max-width: 380px; height: 100%;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); z-index: 20;
+    position: fixed; top:0; right:0; width: 100%; max-width: 380px; height: 100dvh;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(24px); z-index: 30;
     transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex; flex-direction: column;
 }
 .sidebar:not(.hidden) { transform: translateX(0); }
-body.light-theme .sidebar { background: rgba(255,255,255,0.85); }
+body.light-theme .sidebar { background: rgba(255,255,255,0.9); }
 .sidebar.hidden { display: flex; transform: translateX(100%); }
 
-.sidebar-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.back-btn, .close-btn { background:none; border:none; color:var(--text-color); font-size:24px; cursor:pointer; padding:0 10px; }
-.sidebar-menu { padding: 15px; overflow-y: auto; flex:1; display: flex; flex-direction: column; gap:10px; }
+.sidebar-header { padding: 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.back-btn, .close-btn { background:none; border:none; color:var(--text-color); font-size:28px; cursor:pointer; padding:0 10px; }
+.sidebar-menu { padding: 20px; overflow-y: auto; flex:1; display: flex; flex-direction: column; gap:12px; }
 .menu-item {
     background: var(--bg-glass); backdrop-filter: blur(8px); border: var(--glass-border);
-    color: var(--text-color); padding: 15px; border-radius: 16px; font-size:16px; font-weight:500;
+    color: var(--text-color); padding: 16px; border-radius: 16px; font-size:16px; font-weight:500;
     text-align:left; cursor:pointer; transition: 0.2s; box-shadow: var(--shadow);
 }
 .menu-item:active { transform: scale(0.98); }
@@ -116,36 +176,39 @@ body.light-theme .sidebar { background: rgba(255,255,255,0.85); }
 
 .settings-content { padding: 20px; overflow-y: auto; flex:1; display: flex; flex-direction: column; gap:15px; }
 .settings-content input, .settings-content select {
-    padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.05); color: var(--text-color); font-size:14px; width:100%;
+    padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05); color: var(--text-color); font-size:15px; width:100%;
 }
 body.light-theme .settings-content input, body.light-theme .settings-content select { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); }
-.settings-content label { font-weight:500; margin-top:5px; display:block; }
-.settings-content button.save-btn { background: var(--accent); color:#121212; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; margin-top:10px; }
+.settings-content label { font-weight:600; margin-top:5px; display:block; font-size:14px; opacity:0.8; }
+.settings-content button.save-btn { background: var(--accent-grad); color:#121212; border:none; padding:14px; border-radius:14px; font-weight:bold; cursor:pointer; margin-top:10px; }
 
+/* ==================== СТАТИСТИКА И ИСТОРИЯ ==================== */
 .stats-cards { padding: 10px 20px; display: flex; flex-wrap: wrap; gap:10px; }
-.stats-cards .stat { background: var(--bg-glass); padding:10px; border-radius:12px; flex:1; min-width:70px; text-align:center; }
-.stats-cards .stat span { font-size:22px; font-weight:bold; display:block; }
+.stats-cards .stat { background: var(--bg-glass); padding:14px; border-radius:16px; flex:1; min-width:70px; text-align:center; border: var(--glass-border); }
+.stats-cards .stat span { font-size:26px; font-weight:700; display:block; }
 .history-scroll { padding: 10px 20px; overflow-y: auto; flex:1; }
-.history-item { padding:12px; margin-bottom:10px; border-radius:12px; border-left:4px solid #00cc99; cursor:pointer; background:var(--bg-glass); }
+.history-item { padding:16px; margin-bottom:12px; border-radius:16px; border-left:5px solid #00cc99; cursor:pointer; background:var(--bg-glass); border: var(--glass-border); }
 
-/* MODAL & TOAST */
-.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:30; display:flex; justify-content:center; align-items:center; }
+/* ==================== МОДАЛКА И TOAST ==================== */
+.modal { position:fixed; top:0; left:0; width:100%; height:100dvh; background:rgba(0,0,0,0.7); z-index:30; display:flex; justify-content:center; align-items:center; backdrop-filter: blur(8px); }
 .modal.hidden { display:none; }
-.modal-content { padding:25px; max-width:400px; width:90%; max-height:90vh; overflow-y:auto; text-align:center; }
-.modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:center; }
-.modal-actions button { flex:1; padding:10px; border-radius:12px; border:none; font-weight:bold; cursor:pointer; background:var(--bg-glass); color:var(--text-color); }
-#height-chart-container { margin: 15px 0; height: 100px; background: #222; border-radius: 10px; }
+.modal-content { padding:30px; max-width:400px; width:90%; max-height:90vh; overflow-y:auto; text-align:center; }
+.modal-actions { display:flex; gap:12px; margin-top:20px; justify-content:center; }
+.modal-actions button { flex:1; padding:14px; border-radius:16px; border:none; font-weight:600; cursor:pointer; background:var(--bg-glass); color:var(--text-color); border: var(--glass-border); }
+#height-chart-container { margin: 15px 0; height: 120px; background: rgba(255,255,255,0.05); border-radius: 16px; overflow:hidden; }
 
 .toast {
-    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-    padding:14px 24px; border-radius:30px; font-size:14px; z-index:40; pointer-events:none;
+    position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+    padding:16px 28px; border-radius:40px; font-size:15px; z-index:40; pointer-events:none;
     transition: opacity 0.3s, bottom 0.3s; text-align:center;
+    background: var(--bg-glass); backdrop-filter: blur(16px); border: var(--glass-border); box-shadow: var(--shadow);
 }
-.toast.hidden { opacity:0; bottom:60px; pointer-events:none; }
+.toast.hidden { opacity:0; bottom:80px; pointer-events:none; }
 
+/* ==================== АДАПТИВНОСТЬ ==================== */
 @media (min-width: 800px) {
     #top-panel { max-width: 600px; left:50%; transform:translateX(-50%); }
-    #bottom-controls { right:40px; bottom:40px; }
-    .sidebar { border-radius: 20px 0 0 20px; }
+    #bottom-controls { bottom:40px; gap:20px; padding:16px 28px; }
+    .sidebar { border-radius: 24px 0 0 24px; }
 }
