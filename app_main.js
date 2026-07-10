@@ -339,6 +339,59 @@ function closeModal() { document.getElementById('finish-modal').classList.add('h
 function shareScreenshot() { html2canvas(document.getElementById('map')).then(canvas => { const a = document.createElement('a'); a.download = 'my_ride.png'; a.href = canvas.toDataURL('image/png'); a.click(); }); }
 function resetApp() { if(confirm('Сбросить все настройки и данные?')) { localStorage.clear(); location.reload(); } }
 
+// ========== ИНТЕГРАЦИИ ==========
+function shareCurrentRoute() {
+    if (points.length < 2) return showToast('Сначала запиши или нарисуй маршрут');
+    const text = `Мой маршрут: ${totalDistance.toFixed(1)} км за ${formatTime(elapsedSeconds)}!`;
+    if (navigator.share) {
+        navigator.share({ title: 'Мой вело-маршрут', text: text }).catch(() => {});
+    } else {
+        // Если браузер не поддерживает Web Share API, копируем в буфер
+        navigator.clipboard.writeText(text + ' (Скопируй координаты маршрута)');
+        showToast('Текст скопирован в буфер!');
+    }
+}
+
+function exportKML() {
+    if (points.length < 2) return showToast('Сначала запиши или нарисуй маршрут');
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<Placemark>\n<LineString>\n<coordinates>\n`;
+    points.forEach(p => { kml += `${p.lng},${p.lat},${p.alt||0}\n`; });
+    kml += `</coordinates>\n</LineString>\n</Placemark>\n</Document>\n</kml>`;
+    const blob = new Blob([kml], {type:'application/vnd.google-earth.kml+xml'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `route_${Date.now()}.kml`; a.click();
+    showToast('KML файл скачан!');
+}
+
+function exportBackup() {
+    const data = { routes: routeHistory, settings: userSettings, odo: odoTotal };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${Date.now()}.json`; a.click();
+    showToast('Бэкап сохранён!');
+}
+
+function importBackup(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.routes && Array.isArray(data.routes)) {
+                routeHistory = data.routes;
+                localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
+                if (data.odo) odoTotal = data.odo;
+                if (data.settings) {
+                    userSettings = data.settings;
+                    localStorage.setItem('bike_settings', JSON.stringify(userSettings));
+                }
+                showToast('Бэкап успешно восстановлен!');
+                location.reload();
+            } else {
+                showToast('Неверный формат файла');
+            }
+        } catch(err) { showToast('Ошибка чтения бэкапа'); }
+    };
+    reader.readAsText(file);
+}
 // --- Мультиудаление ---
 let isMultiDeleteMode = false;
 function toggleMultiDeleteMode() {
