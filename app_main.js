@@ -314,4 +314,5 @@ window.onload = function() {
     applySettings();
     const odoEl = document.getElementById('odo-display');
     if(odoEl) odoEl.textContent = odoTotal.toFixed(0);
+if (s.layer) toggleMapLayer(s.layer);
 };
