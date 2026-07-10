@@ -93,8 +93,39 @@ function getTabHTML(tab) {
         }, 0);
         html += `<label>Цель на сегодня (км)</label><input type="number" id="s-dailygoal" value="${s.dailyGoal || 0}"><button class="save-btn" onclick="saveSettingsTab('training')">💾 Сохранить цель</button><hr><h4>📈 Прогресс за сегодня</h4><p>Проехано: <span id="today-distance">0</span> км</p><div style="background:#222; height:10px; border-radius:5px; width:100%;"><div id="progress-bar" style="background:var(--accent-grad); height:100%; border-radius:5px; width:0%;"></div></div><hr><h4>🏆 Личные рекорды</h4><p>Самая длинная поездка: <b>${bestDistance.toFixed(1)} км</b></p><p>Максимальная средняя скорость: <b>${bestAvgSpeed.toFixed(1)} км/ч</b></p><p>Суммарный набор высоты: <b>${totalClimb.toFixed(0)} м</b></p><p>Всего калорий: <b>${totalCal.toFixed(0)} ккал</b></p>`;
     } else if(tab === 'achievements') {
-        html += `<h4>Достижения</h4><p>Будет реализовано в следующей версии (система бейджиков).</p>`;
-    } else {
+    // Сначала пересчитываем достижения на основе текущей истории
+    const achievements = calculateAchievements(routeHistory);
+    html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
+    achievements.forEach(ach => {
+        const isUnlocked = ach.unlocked;
+        html += `
+            <div style="background:${isUnlocked ? 'var(--accent-grad)' : 'rgba(255,255,255,0.05)'}; 
+                        padding:15px; border-radius:16px; min-width:120px; text-align:center; 
+                        opacity:${isUnlocked ? 1 : 0.4}; flex:1;">
+                <div style="font-size:28px;">${ach.icon}</div>
+                <div style="font-size:14px; font-weight:bold; margin-top:5px;">${ach.title}</div>
+                <div style="font-size:11px;">${isUnlocked ? '✅ Получено!' : '🔒 Ещё не получено'}</div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+}
+     else if(tab === 'integrations') {
+        html += `
+            <h4>📤 Поделиться маршрутом</h4>
+            <p style="font-size:13px; opacity:0.8;">Поделиться текущим маршрутом через мессенджеры</p>
+            <button class="save-btn" onclick="shareCurrentRoute()">📲 Поделиться</button>
+            
+            <h4 style="margin-top:15px;">🌍 Экспорт в KML (Google Earth)</h4>
+            <button class="save-btn" onclick="exportKML()">📤 Скачать KML</button>
+
+            <h4 style="margin-top:15px;">💾 Бэкап данных (JSON)</h4>
+            <button class="save-btn" onclick="exportBackup()">💾 Скачать бэкап</button>
+            <button class="save-btn" onclick="document.getElementById('json-import-input').click()">📂 Загрузить бэкап</button>
+            <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
+        `;
+    }
+    else {
         html += `<p>Настройки для этой вкладки в разработке</p>`;
     }
     return html;
@@ -208,6 +239,7 @@ function saveRoute() {
     routeHistory.push(route); localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
     document.getElementById('btn-save').style.display = 'none'; updateHistoryUI(); updateProgressBar();
     showToast('✅ Маршрут сохранен!'); speakText('Маршрут сохранен');
+document.getElementById('settings-tab-content').innerHTML = getTabHTML('achievements');
 }
 
 function showSummary() {
@@ -261,8 +293,42 @@ function deleteRoute(id) { if(confirm('Удалить этот маршрут?')
 function deleteSingleRoute() { closeSettingsTab(); openStatsFromSidebar(); }
 function deleteMultipleRoutes() { showToast('Выбор нескольких маршрутов будет в следующем обновлении!'); }
 function clearAllRoutes() { if(confirm('Очистить всю историю?')) { routeHistory = []; localStorage.setItem('bike_routes', JSON.stringify(routeHistory)); updateHistoryUI(); showToast('История очищена'); } }
-function exportAllGPX() { showToast('Экспорт всех GPX появится в следующей версии!'); }
-function importGPX() { showToast('Импорт GPX появится в следующей версии!'); }
+// ========== ЭКСПОРТ ВСЕХ GPX ==========
+function exportAllGPX() {
+    if (routeHistory.length === 0) return showToast('Нет маршрутов для экспорта');
+    
+    // Создаём один большой GPX-файл со всеми треками
+    let gpxHeader = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="BikeTracker">\n`;
+    let gpxFooter = `\n</gpx>`;
+    let allTracks = '';
+
+    routeHistory.forEach(r => {
+        allTracks += `  <trk>\n    <name>${r.date}</name>\n    <trkseg>\n`;
+        r.points.forEach(p => {
+            allTracks += `      <trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>\n`;
+        });
+        allTracks += `    </trkseg>\n  </trk>\n`;
+    });
+
+    const fullGpx = gpxHeader + allTracks + gpxFooter;
+    const blob = new Blob([fullGpx], {type:'application/gpx+xml'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `all_routes_${Date.now()}.gpx`;
+    a.click();
+    showToast(`Скачано ${routeHistory.length} маршрутов в одном файле .gpx`);
+}
+
+// ========== ИМПОРТ GPX ==========
+function importGPX() {
+    // Ты уже добавил этот input в HTML ранее, просто вызываем его клик
+    document.getElementById('gpx-import-input').click();
+}
+
+// ========== УДАЛЕНИЕ НЕСКОЛЬКИХ МАРШРУТОВ ==========
+// Функции toggleMultiDeleteMode, addDeleteSelectedButton и deleteSelectedRoutes 
+// уже есть в твоем коде и работают. Убедись, что в HTML есть кнопка вызова:
+// <button class="save-btn" onclick="toggleMultiDeleteMode()">✏️ Выбрать несколько маршрутов</button>
 function exportGPX(id) { const r = routeHistory.find(x=>x.id===id); if(!r) return; let gpx = `<?xml version="1.0"?><gpx><trk><name>${r.date}</name><trkseg>`; r.points.forEach(p => { gpx += `<trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>`; }); gpx += `</trkseg></trk></gpx>`; const blob = new Blob([gpx], {type:'application/gpx+xml'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `route_${r.id}.gpx`; a.click(); }
 
 function openStatsFromSidebar() { toggleSidebar(); document.getElementById('stats-sidebar').classList.remove('hidden'); document.getElementById('stats-content').style.display = 'block'; const stats = document.getElementById('stats-summary'); const totalKm = routeHistory.reduce((sum, r) => sum + r.distance, 0); const totalCal = routeHistory.reduce((sum, r) => sum + r.calories, 0); const avgSpeedAll = routeHistory.length>0 ? (routeHistory.reduce((s,r)=>s+r.avgSpeed,0)/routeHistory.length) : 0; const lastRide = routeHistory.length>0 ? routeHistory[routeHistory.length-1] : null; stats.innerHTML = `<div class="stat"><span>${totalKm.toFixed(0)}</span>${t('km')} всего</div><div class="stat"><span>${routeHistory.length}</span>Поездок</div><div class="stat"><span>${totalCal}</span>Ккал</div><div class="stat"><span>${avgSpeedAll.toFixed(1)}</span>Ср. скорость</div><div class="stat"><span>${lastRide ? lastRide.distance.toFixed(1) : 0}</span>Последний</div>`; updateHistoryUI(); }
@@ -325,6 +391,25 @@ function deleteSelectedRoutes() {
         showToast(`✅ Удалено ${selectedIds.length} маршрутов`);
         toggleMultiDeleteMode();
     }
+}
+
+// --- ДОСТИЖЕНИЯ (глобально) ---
+function calculateAchievements(history) {
+    const totalKm = history.reduce((sum, r) => sum + r.distance, 0);
+    const totalRides = history.length;
+    const maxSpeed = history.length > 0 ? Math.max(...history.map(r => r.maxSpeed || 0)) : 0;
+    const totalCal = history.reduce((sum, r) => sum + r.calories, 0);
+    const rideDays = new Set(history.map(r => new Date(r.date).toLocaleDateString()));
+    const streak = rideDays.size;
+    return [
+        { id: 'first_ride', icon: '🚴', title: 'Первая поездка', unlocked: totalRides >= 1 },
+        { id: 'first_10km', icon: '📏', title: 'Первые 10 км', unlocked: totalKm >= 10 },
+        { id: 'first_50km', icon: '🏅', title: 'Первые 50 км', unlocked: totalKm >= 50 },
+        { id: 'first_100km', icon: '🏆', title: 'Первые 100 км', unlocked: totalKm >= 100 },
+        { id: 'speed_demon', icon: '💨', title: 'Скорость 30+ км/ч', unlocked: maxSpeed >= 30 },
+        { id: 'streak_3', icon: '🔥', title: '3 дня катания', unlocked: streak >= 3 },
+        { id: 'cal_burner', icon: '🍔', title: 'Сжёг 1000 ккал', unlocked: totalCal >= 1000 },
+    ];
 }
 
 // --- Инициализация ---
