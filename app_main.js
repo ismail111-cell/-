@@ -166,15 +166,33 @@ function playBeep() { try { const ctx = new (window.AudioContext || window.webki
 
 // --- РУЧНОЕ РИСОВАНИЕ ---
 function enableManualDraw() {
-    if(isRecording) return; isManualMode = !isManualMode;
-    if(isManualMode) {
-        points = []; document.getElementById('btn-manual').style.background = '#ffb700';
-        document.getElementById('btn-undo').style.display = 'flex'; document.getElementById('btn-clear').style.display = 'flex';
-        map.events.add('click', (e) => { const coords = e.get('coords'); points.push({lat: coords[0], lng: coords[1], alt: 0}); drawRoute(); });
+    if (isRecording) return;
+    isManualMode = !isManualMode;
+    if (isManualMode) {
+        points = [];
+        document.getElementById('btn-manual').style.background = '#ffb700';
+        document.getElementById('btn-undo').style.display = 'flex';
+        document.getElementById('btn-clear').style.display = 'flex';
+        // Добавляем обработчик только если режим включён
+        map.events.add('click', (e) => {
+            const coords = e.get('coords');
+            points.push({lat: coords[0], lng: coords[1], alt: 0});
+            drawRoute();
+        });
     } else {
-        map.events.remove('click'); document.getElementById('btn-manual').style.background = '';
-        document.getElementById('btn-undo').style.display = 'none'; document.getElementById('btn-clear').style.display = 'none';
-        if(points.length > 0) { totalDistance = 0; for(let i=1; i<points.length; i++) { totalDistance += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng); } document.getElementById('distance-display').textContent = totalDistance.toFixed(2); document.getElementById('btn-save').style.display = 'flex'; speakText('Маршрут нарисован'); }
+        map.events.remove('click');
+        document.getElementById('btn-manual').style.background = '';
+        document.getElementById('btn-undo').style.display = 'none';
+        document.getElementById('btn-clear').style.display = 'none';
+        if(points.length > 0) {
+            totalDistance = 0;
+            for(let i=1; i<points.length; i++) {
+                totalDistance += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng);
+            }
+            document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
+            document.getElementById('btn-save').style.display = 'flex';
+            speakText('Маршрут нарисован');
+        }
     }
 }
 function undoLastPoint() { if(points.length > 0) { points.pop(); drawRoute(); showToast('Точка удалена'); } }
