@@ -392,6 +392,34 @@ function importBackup(event) {
     };
     reader.readAsText(file);
 }
+function triggerSOS() {
+    const contact = userSettings.sosContact || '';
+    const action = confirm(`Вызвать SOS?\n\nНажми "OK", чтобы позвонить по номеру ${contact || 'не указан'}\nНажми "Отмена", чтобы отправить координаты через мессенджер.`);
+    if (action) {
+        if (contact) {
+            window.location.href = "tel:" + contact;
+        } else {
+            showToast('Сначала укажи номер контакта в настройках системы');
+        }
+    } else {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const url = `https://maps.google.com/maps?q=${lat},${lng}`;
+                const msg = `Мои текущие координаты: ${url}`;
+                if (navigator.share) {
+                    navigator.share({ title: 'Мои координаты SOS', text: msg }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(msg);
+                    showToast('Координаты скопированы в буфер!');
+                }
+            }, () => showToast('Не удалось определить координаты'));
+        } else {
+            showToast('GPS недоступен');
+        }
+    }
+}
 // --- Мультиудаление ---
 let isMultiDeleteMode = false;
 function toggleMultiDeleteMode() {
