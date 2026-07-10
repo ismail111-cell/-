@@ -57,9 +57,16 @@
             <button id="btn-save" class="ctrl-btn secondary-btn" onclick="saveRoute()" style="display:none;">💾</button>
         </div>
 
-        <!-- Меню -->
-<div id="menu-btn" onclick="toggleSidebar()">☰</div>
-    </div>
+                <!-- Меню -->
+        <div id="menu-btn" onclick="toggleSidebar()">☰</div>
+
+        <!-- SOS кнопка -->
+        <button id="sos-btn" class="sos-btn" onclick="triggerSOS()">🆘</button>
+
+        <!-- Скрытые инпуты для импорта GPX и бэкапа -->
+        <input type="file" id="gpx-import-input" accept=".gpx" style="display:none;">
+        <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
+    </div> <!-- закрывающий тег app-container -->
 
     <!-- ================= БОКОВАЯ ПАНЕЛЬ (МЕНЮ) ================= -->
     <div id="main-sidebar" class="sidebar hidden">
