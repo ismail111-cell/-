@@ -130,25 +130,31 @@ function startRecording() {
     isRecording = true; isPaused = false; isManualMode = false;
     points = []; totalDistance = 0; elapsedSeconds = 0; maxSpeed = 0;
     document.getElementById('btn-start').style.display = 'none'; document.getElementById('btn-pause').style.display = 'flex'; document.getElementById('btn-stop').style.display = 'flex'; document.getElementById('btn-save').style.display = 'none';
-    if(userSettings.startSound) playBeep(); if(userSettings.vibration) navigator.vibrate(50); if(userSettings.autoWeather) updateWeather();
+    if(userSettings.startSound) playBeep(); if(userSettings.vibration) navigator.vibrate(100); if(userSettings.autoWeather) updateWeather();
     startTime = Date.now(); timerInterval = setInterval(updateTimer, 1000);
     watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-            if(isPaused) return; const lat = pos.coords.latitude, lng = pos.coords.longitude;
-            currentSpeed = pos.coords.speed * 3.6 || 0; if(currentSpeed > maxSpeed) maxSpeed = currentSpeed;
-            document.getElementById('speed-display').textContent = currentSpeed.toFixed(1);
-            if(points.length > 0) {
-                const last = points[points.length - 1]; const d = haversine(last.lat, last.lng, lat, lng);
-                totalDistance += d; document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
-                if(userSettings.autoPause && currentSpeed < 0.5 && elapsedSeconds > 10 && !isPaused) togglePause(true);
-                else if(userSettings.autoPause && currentSpeed > 2 && isPaused) togglePause(false);
-            }
-            points.push({lat, lng, alt: pos.coords.altitude || 0}); drawRoute();
-            if(userSettings.streetView) geocodeStreet(lat, lng); checkMotivation();
-        }, (err) => console.warn(err), { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-    );
-    speakText(t('start'));
-}
+    (pos) => {
+        if (isPaused) return;
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        currentSpeed = pos.coords.speed * 3.6 || 0;
+        if (currentSpeed > maxSpeed) maxSpeed = currentSpeed;
+        document.getElementById('speed-display').textContent = currentSpeed.toFixed(1);
+        if (points.length > 0) {
+            const last = points[points.length - 1];
+            const d = haversine(last.lat, last.lng, lat, lng);
+            totalDistance += d;
+            document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
+            if (userSettings.autoPause && currentSpeed < 0.5 && elapsedSeconds > 10 && !isPaused) togglePause(true);
+            else if (userSettings.autoPause && currentSpeed > 2 && isPaused) togglePause(false);
+        }
+        points.push({lat, lng, alt: pos.coords.altitude || 0});
+        drawRoute();
+        if (userSettings.streetView) geocodeStreet(lat, lng);
+        checkMotivation();
+    },
+    (err) => console.warn(err),
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+);
 function drawRoute() {
     if(routeLine) map.geoObjects.remove(routeLine); if(points.length < 2) return;
     const coords = points.map(p => [p.lat, p.lng]);
@@ -158,10 +164,27 @@ function drawRoute() {
 // --- МОТИВАЦИЯ И ГОЛОС ---
 let lastMotivationKm = 0;
 function checkMotivation() {
-    if(!userSettings.voice) return; const freq = parseInt(userSettings.voiceFreq) || 5;
-    if(totalDistance - lastMotivationKm >= freq) { lastMotivationKm = totalDistance; const arr = MOTIVATION[currentLang] || MOTIVATION['ru']; speakText(arr[Math.floor(Math.random() * arr.length)]); }
+    if (!userSettings.voice) return;
+    const freq = parseInt(userSettings.voiceFreq) || 5;
+    // Проверяем, что прошло не менее freq километров от последнего объявления
+    if (totalDistance - lastMotivationKm >= freq) {
+        lastMotivationKm = totalDistance;
+        const arr = MOTIVATION[currentLang] || MOTIVATION['ru'];
+        // Заменяем фиксированную фразу на динамическую с реальным расстоянием
+        const phrase = `Проехал ${totalDistance.toFixed(0)} километров!`;
+        speakText(phrase);
+    }
 }
-function speakText(text) { if(!userSettings.voice) return; if('speechSynthesis' in window) { const utterance = new SpeechSynthesisUtterance(text); utterance.lang = currentLang === 'ru' ? 'ru-RU' : 'en-US'; utterance.rate = 0.9; speechSynthesis.speak(utterance); } }
+
+function speakText(text) {
+    if (!userSettings.voice) return;
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+        utterance.rate = 0.9;
+        speechSynthesis.speak(utterance);
+    }
+}
 function playBeep() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 800; gain.gain.value = 0.3; osc.start(); setTimeout(() => { osc.stop(); }, 150); } catch(e) {} }
 
 // --- РУЧНОЕ РИСОВАНИЕ ---
@@ -257,7 +280,17 @@ function updateHistoryUI() {
         list.appendChild(div);
     });
 }
-function viewRoute(id) { const r = routeHistory.find(x=>x.id===id); if(!r) return; closeStats(); points = r.points; drawRoute(); document.getElementById('distance-display').textContent = r.distance.toFixed(2); showToast('Маршрут загружен'); }
+function viewRoute(id) {
+    const r = routeHistory.find(x => x.id === id);
+    if (!r) return;
+    closeStats();
+    points = r.points;
+    // Принудительно устанавливаем цвет линии из сохранённого маршрута
+    userSettings.color = r.color;
+    drawRoute();
+    document.getElementById('distance-display').textContent = r.distance.toFixed(2);
+    showToast('Маршрут загружен');
+}
 function deleteRoute(id) { if(confirm('Удалить этот маршрут?')) { routeHistory = routeHistory.filter(r => r.id !== id); localStorage.setItem('bike_routes', JSON.stringify(routeHistory)); updateHistoryUI(); showToast('Маршрут удален'); } }
 function deleteSingleRoute() { closeSettingsTab(); openStatsFromSidebar(); }
 function deleteMultipleRoutes() { showToast('Выбор нескольких маршрутов будет в следующем обновлении!'); }
