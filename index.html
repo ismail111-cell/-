@@ -40,10 +40,10 @@
         </div>
 
         <!-- Погода -->
-<div id="weather-panel" onclick="updateWeather()">
-    <span id="weather-icon">☀️</span>
-    <span id="weather-temp">--°C</span>
-</div>
+        <div id="weather-panel" onclick="updateWeather()">
+            <span id="weather-icon">☀️</span>
+            <span id="weather-temp">--°C</span>
+        </div>
         <div id="street-name">Казань</div>
 
         <!-- Кнопки управления -->
@@ -57,7 +57,7 @@
             <button id="btn-save" class="ctrl-btn secondary-btn" onclick="saveRoute()" style="display:none;">💾</button>
         </div>
 
-                <!-- Меню -->
+        <!-- Меню -->
         <div id="menu-btn" onclick="toggleSidebar()">☰</div>
 
         <!-- SOS кнопка -->
@@ -66,6 +66,19 @@
         <!-- Скрытые инпуты для импорта GPX и бэкапа -->
         <input type="file" id="gpx-import-input" accept=".gpx" style="display:none;">
         <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
+
+        <!-- НОВОЕ: Переключатель карты высот -->
+        <div id="elevation-toggle" onclick="toggleElevationLayer()">
+            <span id="elevation-icon">⛰️</span>
+            <span id="elevation-label">Высоты</span>
+        </div>
+
+        <!-- НОВОЕ: Легенда для цветной карты высот -->
+        <div id="elevation-legend" style="display:none;">
+            <div class="legend-item"><span style="background:#ff5050;"></span> Подъём</div>
+            <div class="legend-item"><span style="background:#50ff50;"></span> Спуск</div>
+            <div class="legend-item"><span style="background:#6496ff;"></span> Ровно</div>
+        </div>
     </div> <!-- закрывающий тег app-container -->
 
     <!-- ================= БОКОВАЯ ПАНЕЛЬ (МЕНЮ) ================= -->
@@ -135,4 +148,4 @@
     <script src="i18n.js"></script>
     <script src="app_main.js?v=2026"></script>
 </body>
-                                                          </html>
+</html>
