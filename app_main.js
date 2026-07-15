@@ -12,7 +12,7 @@ let userSettings = JSON.parse(localStorage.getItem('bike_settings')) || {
     theme: 'dark', lang: 'ru', color: '#00ffcc', lineWidth: 4,
     voice: true, voiceFreq: '5', startSound: true, vibration: true,
     dailyGoal: 0, autoPause: true, tempUnit: 'C', streetView: true,
-    layer: 'scheme', fontSize: 'medium'
+    layer: 'scheme', fontSize: 'medium', sos: false, sosContact: ''
 };
 let odoTotal = 0, currentRouteId = null;
 const MOTIVATION = {
@@ -21,27 +21,27 @@ const MOTIVATION = {
     ar: ["أنت آلة! استمر!","5 كم خلفك، نبضك طبيعي، تابع!","سرعة قياسية! الرياح صديقتك اليوم.","إيقاع رائع، لا تبطئ!","القليل وسنغزو قمة جديدة!","جميل! لقد خلقت للدراجات.","10 كم! الهدف قريب، دوّس بقوة!","واو، أنت تطير! رائع!"]
 };
 
+// Переменные для компаса
+let compassHeading = 0;
+let compassWatchId = null;
+
 // --- ИНИЦИАЛИЗАЦИЯ КАРТЫ С ЦЕНТРИРОВАНИЕМ ПО GPS И МЕТКОЙ "Я" ---
 ymaps.ready(function() {
     // Сначала создаём карту с центром по умолчанию (Казань) и тёмной темой
     map = new ymaps.Map('map', {
         center: [55.7961, 49.1064],
         zoom: 13,
-        controls: ['zoomControl', 'geolocationControl'],
-        // Включаем тёмную тему (если поддерживается)
+        controls: ['zoomControl'],
         behaviors: ['default', 'scrollZoom']
     });
+    
     // Применяем тёмную тему, если пользователь выбрал тёмную тему
     if (userSettings.theme === 'dark') {
         map.setType('yandex#map');
-        // Для тёмной темы карты используем специальный стиль через CSS
         document.getElementById('map').style.filter = 'invert(0.9) hue-rotate(180deg)';
     } else {
         document.getElementById('map').style.filter = 'none';
     }
-
-    // Добавляем кнопку геолокации
-    map.controls.add('geolocationControl', { float: 'left' });
 
     // Создаём метку "Я" (будет обновляться при получении GPS)
     myPlacemark = new ymaps.Placemark([55.7961, 49.1064], {
@@ -57,12 +57,10 @@ ymaps.ready(function() {
         navigator.geolocation.getCurrentPosition(function(pos) {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            // Обновляем метку и центрируем карту
             myPlacemark.geometry.setCoordinates([lat, lng]);
             map.setCenter([lat, lng], 15, { duration: 500 });
         }, function(err) {
             console.warn('Не удалось определить местоположение:', err);
-            // Если GPS недоступен, оставляем Казань
         }, { enableHighAccuracy: true, timeout: 10000 });
     }
 
@@ -77,7 +75,92 @@ ymaps.ready(function() {
 
     // Загрузка сохранённых POI (если есть)
     loadPOIs();
+
+    // Добавляем компас на карту (если поддерживается устройством)
+    initCompass();
 });
+
+// --- ФУНКЦИЯ "НАЙТИ МЕНЯ" ---
+function flyToMe() {
+    if (!navigator.geolocation) {
+        showToast('GPS недоступен');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        myPlacemark.geometry.setCoordinates([lat, lng]);
+        map.setCenter([lat, lng], 15, { duration: 500 });
+        showToast('Я найден!');
+    }, function(err) {
+        showToast('Не удалось определить местоположение');
+        console.warn(err);
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ КОМПАСА ---
+function initCompass() {
+    const compassContainer = document.getElementById('compass-container');
+    if (!compassContainer) return;
+
+    // Проверяем поддержку API ориентации
+    if (window.DeviceOrientationEvent) {
+        // Запрашиваем разрешение на iOS 13+
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                    } else {
+                        compassContainer.innerHTML = '🧭';
+                        showToast('Разрешение на компас не получено');
+                    }
+                })
+                .catch(err => console.warn(err));
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+    } else {
+        compassContainer.innerHTML = '🧭';
+        showToast('Компас не поддерживается устройством');
+    }
+
+    // При клике на компас поворачиваем карту
+    compassContainer.addEventListener('click', function() {
+        if (map) {
+            // Поворот карты в направлении севера (0 градусов)
+            // В Яндекс.Картах можно использовать rotate
+            if (typeof map.rotate === 'function') {
+                map.rotate(0, { duration: 300 });
+            } else {
+                // Альтернатива: центрируем и сбрасываем поворот
+                map.setZoom(15, { duration: 300 });
+                map.container.fitToViewport();
+            }
+        }
+    });
+}
+
+function handleOrientation(event) {
+    const alpha = event.alpha; // 0-360, направление на север
+    if (alpha !== null) {
+        compassHeading = alpha;
+        updateCompass(alpha);
+    }
+}
+
+function updateCompass(heading) {
+    const container = document.getElementById('compass-container');
+    if (!container) return;
+    // Рисуем стрелку компаса с помощью SVG
+    container.innerHTML = `
+        <svg width="30" height="30" viewBox="0 0 30 30">
+            <polygon points="15,2 20,13 15,10 10,13" fill="red" transform="rotate(${heading}, 15, 15)" />
+            <polygon points="15,28 20,17 15,20 10,17" fill="blue" transform="rotate(${heading}, 15, 15)" />
+            <circle cx="15" cy="15" r="2" fill="white" />
+        </svg>
+    `;
+}
 
 // --- ФУНКЦИИ ВХОДА И НАВИГАЦИИ ---
 function enterApp() {
@@ -116,8 +199,7 @@ function openSettingsTab(tab) {
     const content = document.getElementById('settings-tab-content');
     content.style.display = 'flex'; content.innerHTML = getTabHTML(tab);
 }
-
-// --- НАЧАЛО getTabHTML (профиль, карта, звук, погода, история, система, интерфейс, тренировки) ---
+// --- НАЧАЛО getTabHTML ---
 function getTabHTML(tab) {
     const s = userSettings; let html = `<button class="back-btn" onclick="closeSettingsTab()">◀ Назад</button><h3 style="margin-bottom:10px;">${t(tab)}</h3>`;
     if(tab === 'profile') {
@@ -128,6 +210,9 @@ function getTabHTML(tab) {
         html += `<label>Озвучивание событий</label><select id="s-voice"><option value="true" ${s.voice?'selected':''}>Вкл</option><option value="false" ${!s.voice?'selected':''}>Выкл</option></select><label>Частота подсказок (км)</label><select id="s-voicefreq"><option value="1" ${s.voiceFreq=='1'?'selected':''}>1 км</option><option value="5" ${s.voiceFreq=='5'?'selected':''}>5 км</option><option value="10" ${s.voiceFreq=='10'?'selected':''}>10 км</option><option value="end" ${s.voiceFreq=='end'?'selected':''}>Только финиш</option></select><label>Звук старта (Бип)</label><select id="s-startsound"><option value="true" ${s.startSound?'selected':''}>Вкл</option><option value="false" ${!s.startSound?'selected':''}>Выкл</option></select><label>Вибрация кнопок</label><select id="s-vibration"><option value="true" ${s.vibration?'selected':''}>Вкл</option><option value="false" ${!s.vibration?'selected':''}>Выкл</option></select><button class="save-btn" onclick="saveSettingsTab('sound')">💾 Сохранить</button>`;
     } else if(tab === 'weather') {
         html += `<label>Авто-погода при старте</label><select id="s-autoweather"><option value="true" ${s.autoWeather?'selected':''}>Вкл</option><option value="false" ${!s.autoWeather?'selected':''}>Выкл</option></select><label>Прогноз на завтра</label><select id="s-forecast"><option value="true" ${s.forecast?'selected':''}>Вкл</option><option value="false" ${!s.forecast?'selected':''}>Выкл</option></select><label>Показывать улицу</label><select id="s-streetview"><option value="true" ${s.streetView?'selected':''}>Вкл</option><option value="false" ${!s.streetView?'selected':''}>Выкл</option></select><button class="save-btn" onclick="saveSettingsTab('weather')">💾 Сохранить</button>`;
+    } else if(tab === 'forecast') {
+        html += `<button class="save-btn" onclick="getForecast()">🌤️ Загрузить прогноз на 5 дней</button>`;
+        // Сюда будет вставлен прогноз после загрузки
     } else if(tab === 'history') {
         html += `<h4>Управление историей</h4><button class="save-btn" onclick="toggleMultiDeleteMode()">✏️ Выбрать несколько маршрутов</button><button class="save-btn" onclick="deleteSingleRoute()">🗑️ Удалить один маршрут</button><button class="save-btn red-text" onclick="clearAllRoutes()">⚠️ Очистить всё</button><button class="save-btn" onclick="exportAllGPX()">📤 Экспорт всех GPX (ZIP)</button><button class="save-btn" onclick="importGPX()">📥 Импорт GPX</button>`;
     } else if(tab === 'system') {
@@ -150,7 +235,7 @@ function getTabHTML(tab) {
             return sum + climb;
         }, 0);
         html += `<label>Цель на сегодня (км)</label><input type="number" id="s-dailygoal" value="${s.dailyGoal || 0}"><button class="save-btn" onclick="saveSettingsTab('training')">💾 Сохранить цель</button><hr><h4>📈 Прогресс за сегодня</h4><p>Проехано: <span id="today-distance">0</span> км</p><div style="background:#222; height:10px; border-radius:5px; width:100%;"><div id="progress-bar" style="background:var(--accent-grad); height:100%; border-radius:5px; width:0%;"></div></div><hr><h4>🏆 Личные рекорды</h4><p>Самая длинная поездка: <b>${bestDistance.toFixed(1)} км</b></p><p>Максимальная средняя скорость: <b>${bestAvgSpeed.toFixed(1)} км/ч</b></p><p>Суммарный набор высоты: <b>${totalClimb.toFixed(0)} м</b></p><p>Всего калорий: <b>${totalCal.toFixed(0)} ккал</b></p>`;
-        } else if(tab === 'achievements') {
+    } else if(tab === 'achievements') {
         const achievements = calculateAchievements(routeHistory);
         html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
         achievements.forEach(ach => {
@@ -187,7 +272,6 @@ function getTabHTML(tab) {
             <button class="save-btn" onclick="openRouting()">🗺️ Открыть планировщик</button>
         `;
     } else if(tab === 'poi') {
-        // Вкладка для управления сохранёнными точками (POI)
         const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
         html += `<h4>📍 Мои точки (POI)</h4><p style="font-size:13px; opacity:0.8;">Сохраняй важные места и строй через них маршруты.</p>`;
         if (pois.length === 0) {
@@ -222,6 +306,7 @@ function closeSettingsTab() {
     document.getElementById('settings-tab-content').style.display = 'none';
 }
 
+// --- СОХРАНЕНИЕ НАСТРОЕК ---
 function saveSettingsTab(tab) {
     const s = userSettings;
     if(tab === 'profile') {
@@ -261,11 +346,13 @@ function saveSettingsTab(tab) {
     showToast('Настройки сохранены!');
     closeSettingsTab();
 }
+// --- УПРАВЛЕНИЕ СЛОЕМ КАРТЫ ---
 function toggleMapLayer(layer) {
     if(!map) return;
     map.setType(layer === 'satellite' ? 'yandex#satellite' : 'yandex#map');
 }
 
+// --- ПРИМЕНЕНИЕ НАСТРОЕК ---
 function applySettings() {
     const s = userSettings;
     currentLang = s.lang;
@@ -282,7 +369,7 @@ function applySettings() {
         sosBtn.style.display = s.sos ? 'flex' : 'none';
     }
 
-    // Применяем тёмную тему для карты, если выбрана тёмная тема
+    // Применяем тёмную тему для карты
     const mapElement = document.getElementById('map');
     if (mapElement) {
         if (s.theme === 'dark') {
@@ -338,7 +425,7 @@ function startRecording() {
             if(currentSpeed > maxSpeed) maxSpeed = currentSpeed;
             document.getElementById('speed-display').textContent = currentSpeed.toFixed(1);
             
-            // Обновляем метку "Я" при каждом обновлении GPS
+            // Обновляем метку "Я"
             if(myPlacemark) {
                 myPlacemark.geometry.setCoordinates([lat, lng]);
             }
@@ -377,6 +464,7 @@ function drawRoute() {
     });
     map.geoObjects.add(routeLine);
 }
+
 // --- МОТИВАЦИЯ И ГОЛОС ---
 let lastMotivationKm = 0;
 function checkMotivation() {
@@ -385,7 +473,6 @@ function checkMotivation() {
     if(totalDistance - lastMotivationKm >= freq) {
         lastMotivationKm = totalDistance;
         const phrase = `Проехал ${totalDistance.toFixed(0)} километров!`;
-        // Очищаем очередь перед новым голосом
         if('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
@@ -423,7 +510,6 @@ function enableManualDraw() {
         document.getElementById('btn-manual').style.background = '#ffb700';
         document.getElementById('btn-undo').style.display = 'flex';
         document.getElementById('btn-clear').style.display = 'flex';
-        // Сначала удаляем старый обработчик, чтобы не было дублей
         map.events.remove('click');
         map.events.add('click', (e) => {
             const coords = e.get('coords');
@@ -442,7 +528,6 @@ function enableManualDraw() {
             }
             document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
             document.getElementById('btn-save').style.display = 'flex';
-            // Очищаем очередь перед новым голосом
             if('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
             }
@@ -464,7 +549,6 @@ function togglePause(force) {
     if(!isRecording) return;
     isPaused = force !== null ? force : !isPaused;
     document.getElementById('btn-pause').textContent = isPaused ? '▶️' : '⏸';
-    // Очищаем очередь перед новым голосом
     if('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
     }
@@ -481,7 +565,6 @@ function stopRecording() {
         document.getElementById('btn-pause').style.display = 'none';
         document.getElementById('btn-stop').style.display = 'none';
         document.getElementById('btn-save').style.display = 'flex';
-        // Очищаем очередь перед новым голосом
         if('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
@@ -489,8 +572,7 @@ function stopRecording() {
         showSummary();
     }
 }
-
-// --- СОХРАНЕНИЕ ---
+// --- СОХРАНЕНИЕ МАРШРУТА ---
 function saveRoute() {
     if(points.length < 2) return showToast('Нет точек для сохранения');
     const cal = calcCalories(totalDistance, elapsedSeconds);
@@ -517,7 +599,7 @@ function saveRoute() {
     document.getElementById('settings-tab-content').innerHTML = getTabHTML('achievements');
 }
 
-// --- ИТОГИ ---
+// --- ИТОГИ ПОЕЗДКИ ---
 function showSummary() {
     const modal = document.getElementById('finish-modal');
     const div = document.getElementById('summary-data');
@@ -535,7 +617,7 @@ function showSummary() {
     modal.classList.remove('hidden');
 }
 
-// --- КАРТА ВЫСОТ (цветная заливка, теперь работает и для ручных) ---
+// --- КАРТА ВЫСОТ (цветной график) ---
 function drawHeightChart(route) {
     const canvas = document.getElementById('height-chart');
     const ctx = canvas.getContext('2d');
@@ -619,31 +701,8 @@ function drawHeightChart(route) {
     ctx.textBaseline = 'bottom';
     ctx.fillText(`⬆ ${Math.round(ascent)}м  ⬇ ${Math.round(descent)}м`, canvas.width - pad, legendY);
 }
-// --- Переключатель карты высот (исправление) ---
-let elevationLayerEnabled = false;
-function toggleElevationLayer() {
-    // Удаляем старые сегменты при переключении
-    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
-    elevationSegments = [];
 
-    elevationLayerEnabled = !elevationLayerEnabled;
-    const legend = document.getElementById('elevation-legend');
-    const icon = document.getElementById('elevation-icon');
-    const label = document.getElementById('elevation-label');
-    
-    if (elevationLayerEnabled) {
-        legend.style.display = 'flex';
-        icon.textContent = '⛰️✅';
-        label.textContent = 'Высоты: вкл';
-        if (points.length > 0) drawRouteWithElevation(points);
-    } else {
-        legend.style.display = 'none';
-        icon.textContent = '⛰️';
-        label.textContent = 'Высоты';
-        if (points.length > 0) drawRoute();
-    }
-}
-// --- ПОГОДА И ГЕОКОДИНГ ---
+// --- ПОГОДА ---
 function updateWeather() {
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -657,6 +716,7 @@ function updateWeather() {
     });
 }
 
+// --- ГЕОКОДИНГ ---
 function geocodeStreet(lat, lng) {
     ymaps.geocode([lat, lng]).then(res => {
         const first = res.geoObjects.get(0);
@@ -787,7 +847,6 @@ function shareScreenshot() {
     });
 }
 function resetApp() { if(confirm('Сбросить все настройки и данные?')) { localStorage.clear(); location.reload(); } }
-
 // --- ИНТЕГРАЦИИ И SOS ---
 function shareCurrentRoute() {
     if (points.length < 2) return showToast('Сначала запиши или нарисуй маршрут');
@@ -1085,7 +1144,6 @@ function loadPOIs() {
 
 function addPOI() {
     showToast('Кликни на карте, чтобы добавить точку (POI)');
-    // Временно добавляем обработчик клика
     const clickHandler = function(e) {
         const coords = e.get('coords');
         const lat = coords[0], lng = coords[1];
@@ -1094,7 +1152,6 @@ function addPOI() {
             const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
             pois.push({lat, lng, name: name.trim() || 'Без названия'});
             localStorage.setItem('bike_pois', JSON.stringify(pois));
-            // Перезагружаем POI на карте
             map.geoObjects.each(obj => {
                 if(obj && obj.properties && obj.properties.get('iconContent') === '📍') {
                     map.geoObjects.remove(obj);
@@ -1113,7 +1170,6 @@ function deletePOI(index) {
     const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
     pois.splice(index, 1);
     localStorage.setItem('bike_pois', JSON.stringify(pois));
-    // Перезагружаем POI на карте
     map.geoObjects.each(obj => {
         if(obj && obj.properties && obj.properties.get('iconContent') === '📍') {
             map.geoObjects.remove(obj);
@@ -1121,7 +1177,6 @@ function deletePOI(index) {
     });
     loadPOIs();
     showToast('Точка удалена');
-    // Обновляем вкладку POI в настройках
     document.getElementById('settings-tab-content').innerHTML = getTabHTML('poi');
 }
 
@@ -1129,16 +1184,13 @@ function buildRouteToPOI(index) {
     const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
     if(index >= pois.length) { showToast('Точка не найдена'); return; }
     const poi = pois[index];
-    // Определяем текущее положение как старт (если есть GPS)
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((pos) => {
             const startLat = pos.coords.latitude;
             const startLng = pos.coords.longitude;
             routingPoints = [{lat: startLat, lng: startLng}, {lat: poi.lat, lng: poi.lng}];
             openRouting();
-            // Добавляем точки на карту
             routingPoints.forEach(p => addRoutingPoint(p.lat, p.lng));
-            // Строим маршрут
             buildRouteFromRouting();
         }, () => {
             showToast('Не удалось определить местоположение');
@@ -1146,6 +1198,80 @@ function buildRouteToPOI(index) {
     } else {
         showToast('GPS недоступен');
     }
+}
+
+// --- ПРОГНОЗ ПОГОДЫ ---
+function getForecast() {
+    if (!navigator.geolocation) {
+        showToast('GPS недоступен для прогноза');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const {latitude, longitude} = pos.coords;
+        const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=metric&appid=edd587a4978a7a8b772bac0871b3ed6d&lang=${currentLang}`;
+        try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+            displayForecast(data);
+        } catch (e) {
+            showToast('Ошибка загрузки прогноза: ' + e.message);
+        }
+    }, (err) => {
+        showToast('Не удалось определить местоположение для прогноза');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function displayForecast(data) {
+    const container = document.getElementById('settings-tab-content');
+    if (!container) return;
+    
+    const daily = {};
+    data.list.forEach(item => {
+        const date = new Date(item.dt * 1000);
+        const day = date.toLocaleDateString('ru', { weekday: 'short', day: 'numeric', month: 'short' });
+        if (!daily[day]) daily[day] = [];
+        daily[day].push(item);
+    });
+
+    let html = `<button class="back-btn" onclick="closeSettingsTab()">◀ Назад</button><h3>${t('forecast') || 'Прогноз на 5 дней'}</h3>`;
+    html += `<p style="font-size:13px; opacity:0.8; margin-bottom:12px;">${t('forecast_desc') || 'Почасовой прогноз, восход и закат'}</p>`;
+
+    if (data.city) {
+        html += `<p><b>${data.city.name}</b>, ${data.city.country}</p>`;
+    }
+
+    Object.keys(daily).slice(0, 5).forEach(day => {
+        const items = daily[day];
+        const dayData = items[0];
+        const dateObj = new Date(dayData.dt * 1000);
+        const sunrise = data.city ? new Date(data.city.sunrise * 1000) : null;
+        const sunset = data.city ? new Date(data.city.sunset * 1000) : null;
+
+        html += `<div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; margin-bottom:10px;">`;
+        html += `<div style="display:flex; justify-content:space-between; align-items:center;">`;
+        html += `<b>${day}</b>`;
+        if (sunrise && sunset) {
+            html += `<span style="font-size:12px;">🌅 ${sunrise.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · 🌇 ${sunset.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+        }
+        html += `</div>`;
+
+        items.slice(0, 6).forEach(item => {
+            const time = new Date(item.dt * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            const icon = item.weather[0].icon;
+            const iconUrl = `https://openweathermap.org/img/wn/${icon}.png`;
+            html += `
+                <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span>${time}</span>
+                    <span><img src="${iconUrl}" width="24" height="24" style="vertical-align:middle;"> ${item.weather[0].description}</span>
+                    <span>${Math.round(item.main.temp)}°C</span>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    });
+
+    html += `<button class="save-btn" onclick="getForecast()">🔄 Обновить прогноз</button>`;
+    container.innerHTML = html;
 }
 
 // --- TELEGRAM-ИНТЕГРАЦИЯ (Web App и отправка) ---
@@ -1172,13 +1298,26 @@ function shareToTelegram() {
     }
 }
 
-// --- ОБРАБОТЧИК TELEGRAM WEB APP (если запущено внутри бота) ---
+// --- ОБРАБОТЧИК TELEGRAM WEB APP ---
 if(window.Telegram?.WebApp) {
     window.Telegram.WebApp.ready();
-    // Показываем кнопку отправки
     const shareBtn = document.getElementById('telegram-share');
     if(shareBtn) shareBtn.style.display = 'block';
-    // Можно также отправлять данные при сохранении маршрута
 }
+
+// --- ГЛОБАЛЬНАЯ РЕГИСТРАЦИЯ ФУНКЦИЙ ДЛЯ HTML ---
+window.toggleElevationLayer = toggleElevationLayer;
+window.flyToMe = flyToMe;
+window.getForecast = getForecast;
+window.openRouting = openRouting;
+window.buildRouteFromRouting = buildRouteFromRouting;
+window.clearRouting = clearRouting;
+window.saveRoutingRoute = saveRoutingRoute;
+window.closeRouting = closeRouting;
+window.addPOI = addPOI;
+window.deletePOI = deletePOI;
+window.buildRouteToPOI = buildRouteToPOI;
+window.shareToTelegram = shareToTelegram;
+// Остальные функции уже глобальны (startRecording, togglePause и т.д.)
 
 // --- КОНЕЦ ФАЙЛА ---
