@@ -9,7 +9,7 @@ const LANG = {
         sound: "Звук и голос", training: "Тренировки и мотивация", weather: "Погода и окружение",
         history_tab: "История и данные", achievements: "Достижения", integrations: "Интеграции",
         system: "Система и безопасность", elevation: "Высоты", ascent: "Подъём", descent: "Спуск", flat: "Ровно",
-        routing: "Маршрутизация"
+        routing: "Маршрутизация", forecast: "Прогноз на 5 дней", forecast_desc: "Почасовой прогноз, восход и закат"
     },
     en: {
         speed: "Speed", distance: "Distance", time: "Time", total_km: "Total km",
@@ -21,7 +21,7 @@ const LANG = {
         sound: "Sound & Voice", training: "Training & Motivation", weather: "Weather & Environment",
         history_tab: "History & Data", achievements: "Achievements", integrations: "Integrations",
         system: "System & Security", elevation: "Elevation", ascent: "Ascent", descent: "Descent", flat: "Flat",
-        routing: "Routing"
+        routing: "Routing", forecast: "5-Day Forecast", forecast_desc: "Hourly forecast, sunrise & sunset"
     },
     ar: {
         speed: "السرعة", distance: "المسافة", time: "الوقت", total_km: "إجمالي كم",
@@ -33,7 +33,7 @@ const LANG = {
         sound: "الصوت والصوتيات", training: "التدريب والدافع", weather: "الطقس والبيئة",
         history_tab: "التاريخ والبيانات", achievements: "الإنجازات", integrations: "التكاملات",
         system: "النظام والأمان", elevation: "الارتفاع", ascent: "صعود", descent: "هبوط", flat: "مستو",
-        routing: "توجيه"
+        routing: "توجيه", forecast: "توقعات 5 أيام", forecast_desc: "توقعات كل ساعة، شروق الشمس وغروبها"
     }
 };
 
