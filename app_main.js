@@ -1379,6 +1379,7 @@ window.addPOI = addPOI;
 window.deletePOI = deletePOI;
 window.buildRouteToPOI = buildRouteToPOI;
 window.shareToTelegram = shareToTelegram;
+window.toggleElevationLayer = toggleElevationLayer;
 // Остальные функции уже глобальны (startRecording, togglePause и т.д.)
 
 // --- КОНЕЦ ФАЙЛА ---
