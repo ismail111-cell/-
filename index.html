@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Вело-Трекер Казань</title>
+    <title>Вело-Трекер</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Яндекс.Карты с твоим ключом и поддержкой тёмной темы (темная схема) -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=49779049-bf30-4cf1-b80f-a5bb5ddff0ff&lang=ru_RU"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
@@ -18,7 +19,7 @@
         <div class="splash-content glass">
             <div class="splash-logo">🚴</div>
             <h1>Вело-Трекер</h1>
-            <p class="splash-sub">Твой личный помощник в Казани</p>
+            <p class="splash-sub">Твой личный помощник</p>
             <div class="splash-menu">
                 <button class="main-btn neon-green" onclick="enterApp()">🚀 Крутим педали!</button>
                 <button class="secondary-btn" onclick="openStatsFromSplash()">📊 Моя статистика</button>
@@ -44,7 +45,8 @@
             <span id="weather-icon">☀️</span>
             <span id="weather-temp">--°C</span>
         </div>
-        <div id="street-name">Казань</div>
+        <!-- Название города/улицы (теперь динамическое) -->
+        <div id="street-name"></div>
 
         <!-- Кнопки управления -->
         <div id="bottom-controls">
@@ -63,21 +65,41 @@
         <!-- SOS кнопка -->
         <button id="sos-btn" class="sos-btn" onclick="triggerSOS()">🆘</button>
 
-        <!-- Скрытые инпуты для импорта GPX и бэкапа -->
+        <!-- Скрытые инпуты для импорта -->
         <input type="file" id="gpx-import-input" accept=".gpx" style="display:none;">
         <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
 
-        <!-- НОВОЕ: Переключатель карты высот -->
+        <!-- Переключатель карты высот -->
         <div id="elevation-toggle" onclick="toggleElevationLayer()">
             <span id="elevation-icon">⛰️</span>
             <span id="elevation-label">Высоты</span>
         </div>
 
-        <!-- НОВОЕ: Легенда для цветной карты высот -->
+        <!-- Легенда карты высот -->
         <div id="elevation-legend" style="display:none;">
             <div class="legend-item"><span style="background:#ff5050;"></span> Подъём</div>
             <div class="legend-item"><span style="background:#50ff50;"></span> Спуск</div>
             <div class="legend-item"><span style="background:#6496ff;"></span> Ровно</div>
+        </div>
+
+        <!-- Панель маршрутизации -->
+        <div id="routing-panel" style="display:none;">
+            <div id="routing-controls">
+                <button id="btn-build-route" onclick="buildRouteFromRouting()">🚴 Построить маршрут</button>
+                <button id="btn-clear-routing" onclick="clearRouting()">🗑️ Очистить</button>
+                <button id="btn-save-routing" onclick="saveRoutingRoute()">💾 Сохранить</button>
+                <button id="btn-close-routing" onclick="closeRouting()">✖ Закрыть</button>
+            </div>
+            <div id="routing-info">
+                <span id="routing-points-count">Точек: 0</span>
+                <span id="routing-distance">Дистанция: -- км</span>
+                <span id="routing-time">Время: -- мин</span>
+            </div>
+        </div>
+
+        <!-- Кнопка для Telegram (видна только внутри бота) -->
+        <div id="telegram-share" style="display:none;">
+            <button onclick="shareToTelegram()">📤 Отправить в Telegram</button>
         </div>
     </div> <!-- закрывающий тег app-container -->
 
@@ -111,6 +133,7 @@
             <button class="menu-item" onclick="openSettingsTab('history')">📂 История и данные</button>
             <button class="menu-item" onclick="openSettingsTab('achievements')">🏆 Достижения</button>
             <button class="menu-item" onclick="openSettingsTab('integrations')">🔗 Интеграции</button>
+            <button class="menu-item" onclick="openSettingsTab('routing')">🚴 Маршрутизация</button>
             <button class="menu-item" onclick="openSettingsTab('system')">⚙️ Система и безопасность</button>
         </div>
         <div id="settings-tab-content" class="settings-content hidden"></div>
