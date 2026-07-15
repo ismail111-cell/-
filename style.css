@@ -195,6 +195,57 @@ body.light-theme .ctrl-btn.secondary-btn { background: rgba(0, 0, 0, 0.08); bord
     box-shadow: var(--shadow);
 }
 
+/* ==================== НОВЫЕ ЭЛЕМЕНТЫ КАРТЫ ВЫСОТ ==================== */
+#elevation-toggle {
+    position: absolute;
+    top: 200px;
+    left: 15px;
+    z-index: 15;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    padding: 8px 14px;
+    border-radius: 30px;
+    border: var(--glass-border);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    pointer-events: auto;
+    font-size: 14px;
+    color: var(--text-color);
+}
+#elevation-toggle:active { transform: scale(0.95); }
+
+#elevation-legend {
+    position: absolute;
+    bottom: 120px;
+    left: 15px;
+    z-index: 15;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    padding: 10px 14px;
+    border-radius: 16px;
+    border: var(--glass-border);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-color);
+}
+#elevation-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#elevation-legend .legend-item span {
+    display: inline-block;
+    width: 20px;
+    height: 6px;
+    border-radius: 3px;
+}
+
 /* ==================== БОКОВЫЕ МЕНЮ ==================== */
 .sidebar {
     position: fixed; top:0; right:0; width: 100%; max-width: 380px; height: 100dvh;
