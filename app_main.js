@@ -1,5 +1,6 @@
 // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
 let map, routeLine;
+let elevationSegments = []; // для хранения сегментов карты высот
 let isRecording = false, isPaused = false, isManualMode = false, isSplash = true;
 let points = [], timerInterval, elapsedSeconds = 0;
 let totalDistance = 0, currentSpeed = 0, maxSpeed = 0;
@@ -790,37 +791,38 @@ window.onload = function() {
 // --- НОВАЯ ФУНКЦИЯ: ПЕРЕКЛЮЧЕНИЕ КАРТЫ ВЫСОТ ---
 let elevationLayerEnabled = false;
 function toggleElevationLayer() {
+    // Удаляем старые сегменты при переключении
+    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
+    elevationSegments = [];
+
     elevationLayerEnabled = !elevationLayerEnabled;
     const legend = document.getElementById('elevation-legend');
     const icon = document.getElementById('elevation-icon');
     const label = document.getElementById('elevation-label');
+    
     if (elevationLayerEnabled) {
         legend.style.display = 'flex';
         icon.textContent = '⛰️✅';
         label.textContent = 'Высоты: вкл';
-        // Здесь можно перерисовать текущий маршрут с цветами высот
         if (points.length > 0) drawRouteWithElevation(points);
     } else {
         legend.style.display = 'none';
         icon.textContent = '⛰️';
         label.textContent = 'Высоты';
-        // Вернуть обычный маршрут
         if (points.length > 0) drawRoute();
     }
 }
 
 function drawRouteWithElevation(routePoints) {
+    // Убираем обычную линию, если она есть
     if(routeLine) map.geoObjects.remove(routeLine);
     if(routePoints.length < 2) return;
-    const coords = routePoints.map(p => [p.lat, p.lng]);
-    // Разбиваем линию на сегменты с цветами
-    routeLine = new ymaps.Polyline(coords, {
-        strokeColor: userSettings.color,
-        strokeWidth: userSettings.lineWidth || 4,
-        strokeOpacity: 0.9
-    });
-    // Для цветных сегментов используем мультилинию
-    const segments = [];
+
+    // Очищаем старые сегменты перед новой отрисовкой
+    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
+    elevationSegments = [];
+
+    // Рисуем цветные сегменты
     for (let i = 0; i < routePoints.length - 1; i++) {
         const p1 = routePoints[i], p2 = routePoints[i+1];
         const diff = (p2.alt || 0) - (p1.alt || 0);
@@ -828,24 +830,13 @@ function drawRouteWithElevation(routePoints) {
         if (diff > 2) color = '#ff5050';      // подъём
         else if (diff < -2) color = '#50ff50'; // спуск
         else color = '#6496ff';                // ровно
-        segments.push({
-            coordinates: [[p1.lat, p1.lng], [p2.lat, p2.lng]],
-            color: color
-        });
-    }
-    // Создаём мультилинию
-    const multiRoute = new ymaps.MultiRoute({
-        referencePoints: [],
-        params: { viaPoints: false }
-    });
-    // Заменяем стандартную отрисовку на сегменты
-    // Просто добавляем все сегменты как отдельные полилинии
-    segments.forEach(seg => {
-        const poly = new ymaps.Polyline(seg.coordinates, {
-            strokeColor: seg.color,
+
+        const poly = new ymaps.Polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+            strokeColor: color,
             strokeWidth: userSettings.lineWidth || 4,
             strokeOpacity: 0.9
         });
         map.geoObjects.add(poly);
-    });
+        elevationSegments.push(poly); // запоминаем, чтобы потом удалить
+    }
 }
