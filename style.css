@@ -195,6 +195,54 @@ body.light-theme .ctrl-btn.secondary-btn { background: rgba(0, 0, 0, 0.08); bord
     box-shadow: var(--shadow);
 }
 
+/* ==================== КНОПКА "НАЙТИ МЕНЯ" ==================== */
+#btn-find-me {
+    position: absolute;
+    top: 260px;
+    left: 15px;
+    z-index: 15;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    color: var(--text-color);
+    border: var(--glass-border);
+    box-shadow: var(--shadow);
+    transition: transform 0.1s;
+}
+#btn-find-me:active { transform: scale(0.95); }
+
+/* ==================== КОНТЕЙНЕР КОМПАСА ==================== */
+#compass-container {
+    position: absolute;
+    top: 90px;
+    right: 16px;
+    z-index: 15;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    border: var(--glass-border);
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+#compass-container:active { transform: scale(0.95); }
+#compass-container svg, #compass-container img {
+    width: 30px;
+    height: 30px;
+}
+
 /* ==================== НОВЫЕ ЭЛЕМЕНТЫ КАРТЫ ВЫСОТ ==================== */
 #elevation-toggle {
     position: absolute;
