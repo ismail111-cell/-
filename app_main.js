@@ -10,7 +10,7 @@ let userSettings = JSON.parse(localStorage.getItem('bike_settings')) || {
     theme: 'dark', lang: 'ru', color: '#00ffcc', lineWidth: 4,
     voice: true, voiceFreq: '5', startSound: true, vibration: true,
     dailyGoal: 0, autoPause: true, tempUnit: 'C', streetView: true,
-    layer: 'scheme', fontSize: 'medium' // добавлено для новых фич
+    layer: 'scheme', fontSize: 'medium'
 };
 let odoTotal = 0, currentRouteId = null;
 const MOTIVATION = {
@@ -60,6 +60,7 @@ function openSettingsTab(tab) {
     const content = document.getElementById('settings-tab-content');
     content.style.display = 'flex'; content.innerHTML = getTabHTML(tab);
 }
+
 function getTabHTML(tab) {
     const s = userSettings; let html = `<button class="back-btn" onclick="closeSettingsTab()">◀ Назад</button><h3 style="margin-bottom:10px;">${t(tab)}</h3>`;
     if(tab === 'profile') {
@@ -92,25 +93,24 @@ function getTabHTML(tab) {
             return sum + climb;
         }, 0);
         html += `<label>Цель на сегодня (км)</label><input type="number" id="s-dailygoal" value="${s.dailyGoal || 0}"><button class="save-btn" onclick="saveSettingsTab('training')">💾 Сохранить цель</button><hr><h4>📈 Прогресс за сегодня</h4><p>Проехано: <span id="today-distance">0</span> км</p><div style="background:#222; height:10px; border-radius:5px; width:100%;"><div id="progress-bar" style="background:var(--accent-grad); height:100%; border-radius:5px; width:0%;"></div></div><hr><h4>🏆 Личные рекорды</h4><p>Самая длинная поездка: <b>${bestDistance.toFixed(1)} км</b></p><p>Максимальная средняя скорость: <b>${bestAvgSpeed.toFixed(1)} км/ч</b></p><p>Суммарный набор высоты: <b>${totalClimb.toFixed(0)} м</b></p><p>Всего калорий: <b>${totalCal.toFixed(0)} ккал</b></p>`;
-    } else if(tab === 'achievements') {
-    // Сначала пересчитываем достижения на основе текущей истории
-    const achievements = calculateAchievements(routeHistory);
-    html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
-    achievements.forEach(ach => {
-        const isUnlocked = ach.unlocked;
-        html += `
-            <div style="background:${isUnlocked ? 'var(--accent-grad)' : 'rgba(255,255,255,0.05)'}; 
-                        padding:15px; border-radius:16px; min-width:120px; text-align:center; 
-                        opacity:${isUnlocked ? 1 : 0.4}; flex:1;">
-                <div style="font-size:28px;">${ach.icon}</div>
-                <div style="font-size:14px; font-weight:bold; margin-top:5px;">${ach.title}</div>
-                <div style="font-size:11px;">${isUnlocked ? '✅ Получено!' : '🔒 Ещё не получено'}</div>
-            </div>
-        `;
-    });
-    html += `</div>`;
-}
-     else if(tab === 'integrations') {
+    }
+        } else if(tab === 'achievements') {
+        const achievements = calculateAchievements(routeHistory);
+        html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
+        achievements.forEach(ach => {
+            const isUnlocked = ach.unlocked;
+            html += `
+                <div style="background:${isUnlocked ? 'var(--accent-grad)' : 'rgba(255,255,255,0.05)'}; 
+                            padding:15px; border-radius:16px; min-width:120px; text-align:center; 
+                            opacity:${isUnlocked ? 1 : 0.4}; flex:1;">
+                    <div style="font-size:28px;">${ach.icon}</div>
+                    <div style="font-size:14px; font-weight:bold; margin-top:5px;">${ach.title}</div>
+                    <div style="font-size:11px;">${isUnlocked ? '✅ Получено!' : '🔒 Ещё не получено'}</div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    } else if(tab === 'integrations') {
         html += `
             <h4>📤 Поделиться маршрутом</h4>
             <p style="font-size:13px; opacity:0.8;">Поделиться текущим маршрутом через мессенджеры</p>
@@ -124,164 +124,432 @@ function getTabHTML(tab) {
             <button class="save-btn" onclick="document.getElementById('json-import-input').click()">📂 Загрузить бэкап</button>
             <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
         `;
-    }
-    else {
+    } else {
         html += `<p>Настройки для этой вкладки в разработке</p>`;
     }
     return html;
 }
-function closeSettingsTab() { document.getElementById('settings-menu-list').style.display = 'flex'; document.getElementById('settings-tab-content').style.display = 'none'; }
+
+function closeSettingsTab() {
+    document.getElementById('settings-menu-list').style.display = 'flex';
+    document.getElementById('settings-tab-content').style.display = 'none';
+}
+
 function saveSettingsTab(tab) {
     const s = userSettings;
-    if(tab === 'profile') { s.name = document.getElementById('s-name').value; s.weight = parseFloat(document.getElementById('s-weight').value) || 70; s.height = parseFloat(document.getElementById('s-height').value) || 175; s.age = parseInt(document.getElementById('s-age').value) || 30; s.bike = document.getElementById('s-bike').value; }
-    else if(tab === 'map') { s.layer = document.getElementById('s-layer').value; s.color = document.getElementById('s-color').value; s.lineWidth = parseInt(document.getElementById('s-width').value); s.compass = document.getElementById('s-compass').value === 'true'; toggleMapLayer(s.layer); }
-    else if(tab === 'sound') { s.voice = document.getElementById('s-voice').value === 'true'; s.voiceFreq = document.getElementById('s-voicefreq').value; s.startSound = document.getElementById('s-startsound').value === 'true'; s.vibration = document.getElementById('s-vibration').value === 'true'; }
-    else if(tab === 'weather') { s.autoWeather = document.getElementById('s-autoweather').value === 'true'; s.forecast = document.getElementById('s-forecast').value === 'true'; s.streetView = document.getElementById('s-streetview').value === 'true'; }
-    else if(tab === 'system') { s.sos = document.getElementById('s-sos').value === 'true'; s.sosContact = document.getElementById('s-soscontact').value; }
-    else if(tab === 'interface') { s.theme = document.getElementById('s-theme').value; s.lang = document.getElementById('s-lang').value; s.color = document.getElementById('s-color').value; s.fontSize = document.getElementById('s-fontsize').value; }
-    else if(tab === 'training') { s.dailyGoal = parseFloat(document.getElementById('s-dailygoal').value) || 0; }
-    localStorage.setItem('bike_settings', JSON.stringify(s)); applySettings(); showToast('Настройки сохранены!'); closeSettingsTab();
+    if(tab === 'profile') {
+        s.name = document.getElementById('s-name').value;
+        s.weight = parseFloat(document.getElementById('s-weight').value) || 70;
+        s.height = parseFloat(document.getElementById('s-height').value) || 175;
+        s.age = parseInt(document.getElementById('s-age').value) || 30;
+        s.bike = document.getElementById('s-bike').value;
+    } else if(tab === 'map') {
+        s.layer = document.getElementById('s-layer').value;
+        s.color = document.getElementById('s-color').value;
+        s.lineWidth = parseInt(document.getElementById('s-width').value);
+        s.compass = document.getElementById('s-compass').value === 'true';
+        toggleMapLayer(s.layer);
+    } else if(tab === 'sound') {
+        s.voice = document.getElementById('s-voice').value === 'true';
+        s.voiceFreq = document.getElementById('s-voicefreq').value;
+        s.startSound = document.getElementById('s-startsound').value === 'true';
+        s.vibration = document.getElementById('s-vibration').value === 'true';
+    } else if(tab === 'weather') {
+        s.autoWeather = document.getElementById('s-autoweather').value === 'true';
+        s.forecast = document.getElementById('s-forecast').value === 'true';
+        s.streetView = document.getElementById('s-streetview').value === 'true';
+    } else if(tab === 'system') {
+        s.sos = document.getElementById('s-sos').value === 'true';
+        s.sosContact = document.getElementById('s-soscontact').value;
+    } else if(tab === 'interface') {
+        s.theme = document.getElementById('s-theme').value;
+        s.lang = document.getElementById('s-lang').value;
+        s.color = document.getElementById('s-color').value;
+        s.fontSize = document.getElementById('s-fontsize').value;
+    } else if(tab === 'training') {
+        s.dailyGoal = parseFloat(document.getElementById('s-dailygoal').value) || 0;
+    }
+    localStorage.setItem('bike_settings', JSON.stringify(s));
+    applySettings();
+    showToast('Настройки сохранены!');
+    closeSettingsTab();
 }
-function toggleMapLayer(layer) { if(!map) return; map.setType(layer === 'satellite' ? 'yandex#satellite' : 'yandex#map'); }
+
+function toggleMapLayer(layer) {
+    if(!map) return;
+    map.setType(layer === 'satellite' ? 'yandex#satellite' : 'yandex#map');
+}
 
 function applySettings() {
-    const s = userSettings; currentLang = s.lang;
+    const s = userSettings;
+    currentLang = s.lang;
     document.body.classList.toggle('light-theme', s.theme === 'light');
-    const colorEl = document.getElementById('route-color'); if(colorEl) colorEl.value = s.color;
+    const colorEl = document.getElementById('route-color');
+    if(colorEl) colorEl.value = s.color;
     document.getElementById('top-panel').className = 'font-' + (s.fontSize || 'medium');
     applyLanguage();
     if (s.layer) toggleMapLayer(s.layer);
 }
-function applyLanguage() { document.querySelectorAll('[data-lang]').forEach(el => { const key = el.dataset.lang; el.textContent = t(key); }); }
+
+function applyLanguage() {
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.dataset.lang;
+        el.textContent = t(key);
+    });
+}
+
 function updateProgressBar() {
     const today = new Date().toLocaleDateString();
     const todayRoutes = routeHistory.filter(r => new Date(r.date).toLocaleDateString() === today);
     const todayDistance = todayRoutes.reduce((sum, r) => sum + r.distance, 0);
-    const el = document.getElementById('today-distance'); if(el) el.textContent = todayDistance.toFixed(1);
+    const el = document.getElementById('today-distance');
+    if(el) el.textContent = todayDistance.toFixed(1);
     const goal = userSettings.dailyGoal || 0;
     const progress = goal > 0 ? Math.min((todayDistance / goal) * 100, 100) : 0;
-    const bar = document.getElementById('progress-bar'); if(bar) bar.style.width = progress + '%';
+    const bar = document.getElementById('progress-bar');
+    if(bar) bar.style.width = progress + '%';
 }
-
+// --- ЗАПИСЬ GPS ---
 function startRecording() {
-    if(isRecording) return; if(!navigator.geolocation) { showToast('GPS недоступен'); return; }
+    if(isRecording) return;
+    if(!navigator.geolocation) { showToast('GPS недоступен'); return; }
     isRecording = true; isPaused = false; isManualMode = false;
     points = []; totalDistance = 0; elapsedSeconds = 0; maxSpeed = 0;
-    document.getElementById('btn-start').style.display = 'none'; document.getElementById('btn-pause').style.display = 'flex'; document.getElementById('btn-stop').style.display = 'flex'; document.getElementById('btn-save').style.display = 'none';
+    document.getElementById('btn-start').style.display = 'none';
+    document.getElementById('btn-pause').style.display = 'flex';
+    document.getElementById('btn-stop').style.display = 'flex';
+    document.getElementById('btn-save').style.display = 'none';
+
     if(userSettings.startSound) playBeep();
-    if(userSettings.vibration) navigator.vibrate(100); // исправлено
+    if(userSettings.vibration) navigator.vibrate(100);
     if(userSettings.autoWeather) updateWeather();
-    startTime = Date.now(); timerInterval = setInterval(updateTimer, 1000);
+
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    
     watchId = navigator.geolocation.watchPosition(
         (pos) => {
-            if(isPaused) return; const lat = pos.coords.latitude, lng = pos.coords.longitude;
-            currentSpeed = pos.coords.speed * 3.6 || 0; if(currentSpeed > maxSpeed) maxSpeed = currentSpeed;
+            if(isPaused) return;
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            currentSpeed = pos.coords.speed * 3.6 || 0;
+            if(currentSpeed > maxSpeed) maxSpeed = currentSpeed;
             document.getElementById('speed-display').textContent = currentSpeed.toFixed(1);
             if(points.length > 0) {
-                const last = points[points.length - 1]; const d = haversine(last.lat, last.lng, lat, lng);
-                totalDistance += d; document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
+                const last = points[points.length - 1];
+                const d = haversine(last.lat, last.lng, lat, lng);
+                totalDistance += d;
+                document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
                 if(userSettings.autoPause && currentSpeed < 0.5 && elapsedSeconds > 10 && !isPaused) togglePause(true);
                 else if(userSettings.autoPause && currentSpeed > 2 && isPaused) togglePause(false);
             }
-            points.push({lat, lng, alt: pos.coords.altitude || 0}); drawRoute();
-            if(userSettings.streetView) geocodeStreet(lat, lng); checkMotivation();
+            points.push({lat, lng, alt: pos.coords.altitude || 0});
+            drawRoute();
+            if(userSettings.streetView) geocodeStreet(lat, lng);
+            checkMotivation();
         },
-        (err) => console.warn(err), { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+        (err) => console.warn(err),
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
     );
     speakText(t('start'));
 }
+
 function drawRoute() {
-    if(routeLine) map.geoObjects.remove(routeLine); if(points.length < 2) return;
+    if(routeLine) map.geoObjects.remove(routeLine);
+    if(points.length < 2) return;
     const coords = points.map(p => [p.lat, p.lng]);
-    routeLine = new ymaps.Polyline(coords, { strokeColor: userSettings.color, strokeWidth: userSettings.lineWidth || 4, strokeOpacity: 0.9 });
+    routeLine = new ymaps.Polyline(coords, {
+        strokeColor: userSettings.color,
+        strokeWidth: userSettings.lineWidth || 4,
+        strokeOpacity: 0.9
+    });
     map.geoObjects.add(routeLine);
 }
+
+// --- МОТИВАЦИЯ И ГОЛОС ---
 let lastMotivationKm = 0;
 function checkMotivation() {
-    if(!userSettings.voice) return; const freq = parseInt(userSettings.voiceFreq) || 5;
+    if(!userSettings.voice) return;
+    const freq = parseInt(userSettings.voiceFreq) || 5;
     if(totalDistance - lastMotivationKm >= freq) {
         lastMotivationKm = totalDistance;
         const phrase = `Проехал ${totalDistance.toFixed(0)} километров!`;
         speakText(phrase);
     }
 }
-function speakText(text) { if(!userSettings.voice) return; if('speechSynthesis' in window) { const utterance = new SpeechSynthesisUtterance(text); utterance.lang = currentLang === 'ru' ? 'ru-RU' : 'en-US'; utterance.rate = 0.9; speechSynthesis.speak(utterance); } }
-function playBeep() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 800; gain.gain.value = 0.3; osc.start(); setTimeout(() => { osc.stop(); }, 150); } catch(e) {} }
 
-function enableManualDraw() {
-    if(isRecording) return; isManualMode = !isManualMode;
-    if(isManualMode) {
-        points = []; document.getElementById('btn-manual').style.background = '#ffb700';
-        document.getElementById('btn-undo').style.display = 'flex'; document.getElementById('btn-clear').style.display = 'flex';
-        map.events.add('click', (e) => { const coords = e.get('coords'); points.push({lat: coords[0], lng: coords[1], alt: 0}); drawRoute(); });
-    } else {
-        map.events.remove('click'); document.getElementById('btn-manual').style.background = '';
-        document.getElementById('btn-undo').style.display = 'none'; document.getElementById('btn-clear').style.display = 'none';
-        if(points.length > 0) { totalDistance = 0; for(let i=1; i<points.length; i++) { totalDistance += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng); } document.getElementById('distance-display').textContent = totalDistance.toFixed(2); document.getElementById('btn-save').style.display = 'flex'; speakText('Маршрут нарисован'); }
+function speakText(text) {
+    if(!userSettings.voice) return;
+    if('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+        utterance.rate = 0.9;
+        speechSynthesis.speak(utterance);
     }
 }
-function undoLastPoint() { if(points.length > 0) { points.pop(); drawRoute(); showToast('Точка удалена'); } }
-function clearManualRoute() { if(points.length > 0) { points = []; drawRoute(); showToast('Маршрут очищен'); document.getElementById('btn-save').style.display = 'none'; } }
-function togglePause(force) { if(!isRecording) return; isPaused = force !== null ? force : !isPaused; document.getElementById('btn-pause').textContent = isPaused ? '▶️' : '⏸'; if(isPaused) speakText('Пауза'); else speakText('Продолжаем'); }
-function stopRecording() {
-    if(isRecording) { navigator.geolocation.clearWatch(watchId); clearInterval(timerInterval); isRecording = false; document.getElementById('btn-start').style.display = 'flex'; document.getElementById('btn-pause').style.display = 'none'; document.getElementById('btn-stop').style.display = 'none'; document.getElementById('btn-save').style.display = 'flex'; speakText('Поездка завершена'); showSummary(); }
+
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 800; gain.gain.value = 0.3;
+        osc.start(); setTimeout(() => { osc.stop(); }, 150);
+    } catch(e) {}
 }
+
+// --- РУЧНОЕ РИСОВАНИЕ ---
+function enableManualDraw() {
+    if(isRecording) return;
+    isManualMode = !isManualMode;
+    if(isManualMode) {
+        points = [];
+        document.getElementById('btn-manual').style.background = '#ffb700';
+        document.getElementById('btn-undo').style.display = 'flex';
+        document.getElementById('btn-clear').style.display = 'flex';
+        map.events.add('click', (e) => {
+            const coords = e.get('coords');
+            points.push({lat: coords[0], lng: coords[1], alt: 0});
+            drawRoute();
+        });
+    } else {
+        map.events.remove('click');
+        document.getElementById('btn-manual').style.background = '';
+        document.getElementById('btn-undo').style.display = 'none';
+        document.getElementById('btn-clear').style.display = 'none';
+        if(points.length > 0) {
+            totalDistance = 0;
+            for(let i=1; i<points.length; i++) {
+                totalDistance += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng);
+            }
+            document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
+            document.getElementById('btn-save').style.display = 'flex';
+            speakText('Маршрут нарисован');
+        }
+    }
+}
+
+function undoLastPoint() {
+    if(points.length > 0) { points.pop(); drawRoute(); showToast('Точка удалена'); }
+}
+
+function clearManualRoute() {
+    if(points.length > 0) { points = []; drawRoute(); showToast('Маршрут очищен'); document.getElementById('btn-save').style.display = 'none'; }
+}
+
+// --- ПАУЗА И СТОП ---
+function togglePause(force) {
+    if(!isRecording) return;
+    isPaused = force !== null ? force : !isPaused;
+    document.getElementById('btn-pause').textContent = isPaused ? '▶️' : '⏸';
+    if(isPaused) speakText('Пауза');
+    else speakText('Продолжаем');
+}
+
+function stopRecording() {
+    if(isRecording) {
+        navigator.geolocation.clearWatch(watchId);
+        clearInterval(timerInterval);
+        isRecording = false;
+        document.getElementById('btn-start').style.display = 'flex';
+        document.getElementById('btn-pause').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'none';
+        document.getElementById('btn-save').style.display = 'flex';
+        speakText('Поездка завершена');
+        showSummary();
+    }
+}
+
+// --- СОХРАНЕНИЕ ---
 function saveRoute() {
     if(points.length < 2) return showToast('Нет точек для сохранения');
     const cal = calcCalories(totalDistance, elapsedSeconds);
     const route = {
-        id: Date.now(), date: new Date().toLocaleString(), points: points, distance: totalDistance,
-        time: elapsedSeconds, avgSpeed: elapsedSeconds>0?(totalDistance/(elapsedSeconds/3600)):0,
-        maxSpeed: maxSpeed, calories: cal, color: userSettings.color,
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        points: points,
+        distance: totalDistance,
+        time: elapsedSeconds,
+        avgSpeed: elapsedSeconds>0?(totalDistance/(elapsedSeconds/3600)):0,
+        maxSpeed: maxSpeed,
+        calories: cal,
+        color: userSettings.color,
         weather: document.getElementById('weather-temp').textContent + ' ' + document.getElementById('weather-icon').textContent,
-        layer: userSettings.layer // сохраняем слой карты
+        layer: userSettings.layer
     };
-    routeHistory.push(route); localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
-    document.getElementById('btn-save').style.display = 'none'; updateHistoryUI(); updateProgressBar();
-    showToast('✅ Маршрут сохранен!'); speakText('Маршрут сохранен');
-document.getElementById('settings-tab-content').innerHTML = getTabHTML('achievements');
+    routeHistory.push(route);
+    localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
+    document.getElementById('btn-save').style.display = 'none';
+    updateHistoryUI();
+    updateProgressBar();
+    showToast('✅ Маршрут сохранен!');
+    speakText('Маршрут сохранен');
+    document.getElementById('settings-tab-content').innerHTML = getTabHTML('achievements');
 }
 
+// --- ИТОГИ ---
 function showSummary() {
-    const modal = document.getElementById('finish-modal'); const div = document.getElementById('summary-data');
-    const avg = elapsedSeconds>0?(totalDistance/(elapsedSeconds/3600)):0; const cal = calcCalories(totalDistance, elapsedSeconds);
-    div.innerHTML = `<p><b>${t('distance')}:</b> ${totalDistance.toFixed(2)} ${t('km')}</p><p><b>${t('time')}:</b> ${formatTime(elapsedSeconds)}</p><p><b>${t('speed')}:</b> ${avg.toFixed(1)} ${t('km')}/ч</p><p><b>Макс. скорость:</b> ${maxSpeed.toFixed(1)} ${t('km')}/ч</p><p><b>${t('cal')}:</b> ${cal} ${t('cal')}</p><p><b>Погода:</b> ${document.getElementById('weather-temp').textContent}</p>`;
-    setTimeout(() => drawHeightChart({points}), 100); modal.classList.remove('hidden');
-}
-function drawHeightChart(route) {
-    const canvas = document.getElementById('height-chart'); const ctx = canvas.getContext('2d');
-    canvas.width = canvas.parentElement.clientWidth; canvas.height = 100; ctx.clearRect(0,0,canvas.width,canvas.height);
-    if(!route.points || route.points.length<2) return;
-    const heights = route.points.map(p => p.alt || 0); const minH = Math.min(...heights), maxH = Math.max(...heights), range = maxH-minH || 1;
-    ctx.beginPath(); ctx.strokeStyle = userSettings.color; ctx.lineWidth = 2;
-    heights.forEach((h, i) => { const x = (i/(heights.length-1))*canvas.width; const y = canvas.height - ((h-minH)/range)*canvas.height; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); }); ctx.stroke();
+    const modal = document.getElementById('finish-modal');
+    const div = document.getElementById('summary-data');
+    const avg = elapsedSeconds>0?(totalDistance/(elapsedSeconds/3600)):0;
+    const cal = calcCalories(totalDistance, elapsedSeconds);
+    div.innerHTML = `
+        <p><b>${t('distance')}:</b> ${totalDistance.toFixed(2)} ${t('km')}</p>
+        <p><b>${t('time')}:</b> ${formatTime(elapsedSeconds)}</p>
+        <p><b>${t('speed')}:</b> ${avg.toFixed(1)} ${t('km')}/ч</p>
+        <p><b>Макс. скорость:</b> ${maxSpeed.toFixed(1)} ${t('km')}/ч</p>
+        <p><b>${t('cal')}:</b> ${cal} ${t('cal')}</p>
+        <p><b>Погода:</b> ${document.getElementById('weather-temp').textContent}</p>
+    `;
+    setTimeout(() => drawHeightChart({points}), 100);
+    modal.classList.remove('hidden');
 }
 
+function drawHeightChart(route) {
+    const canvas = document.getElementById('height-chart');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = 120;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(!route.points || route.points.length<2) return;
+    const heights = route.points.map(p => p.alt || 0);
+    const minH = Math.min(...heights), maxH = Math.max(...heights), range = maxH-minH || 1;
+    // Цветная заливка по сегментам
+    const pad = 10;
+    const graphW = canvas.width - pad*2;
+    const graphH = canvas.height - pad*2 - 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(pad, pad, graphW, graphH);
+    for (let i = 0; i < heights.length - 1; i++) {
+        const x1 = pad + (i/(heights.length-1))*graphW;
+        const y1 = pad + graphH - ((heights[i]-minH)/range)*graphH;
+        const x2 = pad + ((i+1)/(heights.length-1))*graphW;
+        const y2 = pad + graphH - ((heights[i+1]-minH)/range)*graphH;
+        const diff = heights[i+1] - heights[i];
+        let color;
+        if (diff > 2) color = 'rgba(255,80,80,0.7)';
+        else if (diff < -2) color = 'rgba(80,255,80,0.7)';
+        else color = 'rgba(100,150,255,0.7)';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x2, pad + graphH);
+        ctx.lineTo(x1, pad + graphH);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+    // Линия поверх
+    ctx.beginPath();
+    for (let i=0; i<heights.length; i++) {
+        const x = pad + (i/(heights.length-1))*graphW;
+        const y = pad + graphH - ((heights[i]-minH)/range)*graphH;
+        if(i===0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Легенда
+    const legendY = canvas.height - 10;
+    const legendItems = [
+        {color:'rgba(255,80,80,0.9)', label:'Подъём'},
+        {color:'rgba(80,255,80,0.9)', label:'Спуск'},
+        {color:'rgba(100,150,255,0.9)', label:'Ровно'}
+    ];
+    let legendX = pad;
+    legendItems.forEach(item => {
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legendX, legendY-12, 12, 12);
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(item.label, legendX+16, legendY);
+        legendX += ctx.measureText(item.label).width + 26;
+    });
+    // Подъём и спуск
+    let ascent=0, descent=0;
+    for (let i=1; i<heights.length; i++) {
+        const diff = heights[i] - heights[i-1];
+        if(diff>0) ascent += diff;
+        else if(diff<0) descent += Math.abs(diff);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`⬆ ${Math.round(ascent)}м  ⬇ ${Math.round(descent)}м`, canvas.width - pad, legendY);
+}
+// --- ПОГОДА И ГЕОКОДИНГ ---
 function updateWeather() {
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (pos) => {
         const {latitude, longitude} = pos.coords;
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=YOUR_OPENWEATHER_KEY`;
-        try { const resp = await fetch(url); const data = await resp.json(); document.getElementById('weather-temp').textContent = Math.round(data.main.temp) + '°C'; document.getElementById('weather-icon').textContent = data.weather[0].icon.includes('n') ? '🌙' : data.weather[0].icon.includes('01') ? '☀️' : '☁️'; } catch(e) { document.getElementById('weather-temp').textContent = '22°C'; }
+        try {
+            const resp = await fetch(url); const data = await resp.json();
+            document.getElementById('weather-temp').textContent = Math.round(data.main.temp) + '°C';
+            document.getElementById('weather-icon').textContent = data.weather[0].icon.includes('n') ? '🌙' : data.weather[0].icon.includes('01') ? '☀️' : '☁️';
+        } catch(e) { document.getElementById('weather-temp').textContent = '22°C'; }
     });
 }
+
 function geocodeStreet(lat, lng) {
-    ymaps.geocode([lat, lng]).then(res => { const first = res.geoObjects.get(0); if(first) { const name = first.getThoroughfare() || first.getAddressLine(); document.getElementById('street-name').textContent = name || 'Казань'; } });
+    ymaps.geocode([lat, lng]).then(res => {
+        const first = res.geoObjects.get(0);
+        if(first) {
+            const name = first.getThoroughfare() || first.getAddressLine();
+            document.getElementById('street-name').textContent = name || 'Казань';
+        }
+    });
 }
-function calcCalories(km, seconds) { const weight = userSettings.weight || 70; const hours = seconds / 3600; const speed = hours > 0 ? km / hours : 0; let met = 4.0; if(speed > 20) met = 8.0; else if(speed > 15) met = 6.0; else if(speed > 10) met = 4.0; else met = 3.0; return Math.round(met * weight * hours); }
-function haversine(lat1, lon1, lat2, lon2) { const R = 6371; const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180; const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return 2 * R * Math.asin(Math.sqrt(a)); }
-function formatTime(s) { const m = Math.floor(s/60); const h = Math.floor(m/60); return `${String(h).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+// --- МАТЕМАТИКА ---
+function calcCalories(km, seconds) {
+    const weight = userSettings.weight || 70;
+    const hours = seconds / 3600;
+    const speed = hours > 0 ? km / hours : 0;
+    let met = 4.0;
+    if(speed > 20) met = 8.0; else if(speed > 15) met = 6.0; else if(speed > 10) met = 4.0; else met = 3.0;
+    return Math.round(met * weight * hours);
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2-lat1)*Math.PI/180;
+    const dLon = (lon2-lon1)*Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function formatTime(s) {
+    const m = Math.floor(s/60); const h = Math.floor(m/60);
+    return `${String(h).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+}
+
 function updateTimer() { if(isPaused) return; elapsedSeconds++; document.getElementById('time-display').textContent = formatTime(elapsedSeconds); }
 
+// --- ИСТОРИЯ ---
 function updateHistoryUI() {
     const list = document.getElementById('history-list'); list.innerHTML = '';
     if(routeHistory.length === 0) { list.innerHTML = '<p style="opacity:0.5;text-align:center;">Маршрутов пока нет</p>'; return; }
     [...routeHistory].reverse().forEach((r) => {
         const div = document.createElement('div'); div.className = 'history-item'; div.style.borderLeftColor = r.color;
-        div.innerHTML = `<div style="display:flex;justify-content:space-between;"><span>${r.date}</span><span>${r.distance.toFixed(1)} км</span></div><div style="font-size:12px;opacity:0.7;">${formatTime(r.time)} | ${r.avgSpeed.toFixed(1)} км/ч | ${r.calories} ккал</div><div style="font-size:11px;">${r.weather||''}</div><div style="margin-top:5px;display:flex;gap:5px;"><button onclick="exportGPX(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">📤 GPX</button><button onclick="viewRoute(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">👁️</button><button onclick="deleteRoute(${r.id})" style="background:transparent;border:1px solid #ef4444;border-radius:8px;padding:4px 8px;color:#ef4444;">🗑️</button></div>`;
+        div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;"><span>${r.date}</span><span>${r.distance.toFixed(1)} км</span></div>
+            <div style="font-size:12px;opacity:0.7;">${formatTime(r.time)} | ${r.avgSpeed.toFixed(1)} км/ч | ${r.calories} ккал</div>
+            <div style="font-size:11px;">${r.weather||''}</div>
+            <div style="margin-top:5px;display:flex;gap:5px;">
+                <button onclick="exportGPX(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">📤 GPX</button>
+                <button onclick="viewRoute(${r.id})" style="background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;color:var(--text-color);">👁️</button>
+                <button onclick="deleteRoute(${r.id})" style="background:transparent;border:1px solid #ef4444;border-radius:8px;padding:4px 8px;color:#ef4444;">🗑️</button>
+            </div>
+        `;
         list.appendChild(div);
     });
 }
+
 function viewRoute(id) {
     const r = routeHistory.find(x=>x.id===id); if(!r) return; closeStats();
     points = r.points; userSettings.color = r.color;
@@ -289,64 +557,80 @@ function viewRoute(id) {
     drawRoute(); document.getElementById('distance-display').textContent = r.distance.toFixed(2);
     showToast('Маршрут загружен');
 }
+
 function deleteRoute(id) { if(confirm('Удалить этот маршрут?')) { routeHistory = routeHistory.filter(r => r.id !== id); localStorage.setItem('bike_routes', JSON.stringify(routeHistory)); updateHistoryUI(); showToast('Маршрут удален'); } }
 function deleteSingleRoute() { closeSettingsTab(); openStatsFromSidebar(); }
-function deleteMultipleRoutes() { showToast('Выбор нескольких маршрутов будет в следующем обновлении!'); }
 function clearAllRoutes() { if(confirm('Очистить всю историю?')) { routeHistory = []; localStorage.setItem('bike_routes', JSON.stringify(routeHistory)); updateHistoryUI(); showToast('История очищена'); } }
-// ========== ЭКСПОРТ ВСЕХ GPX ==========
+
+// --- ЭКСПОРТ GPX ---
 function exportAllGPX() {
     if (routeHistory.length === 0) return showToast('Нет маршрутов для экспорта');
-    
-    // Создаём один большой GPX-файл со всеми треками
     let gpxHeader = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="BikeTracker">\n`;
     let gpxFooter = `\n</gpx>`;
     let allTracks = '';
-
     routeHistory.forEach(r => {
         allTracks += `  <trk>\n    <name>${r.date}</name>\n    <trkseg>\n`;
-        r.points.forEach(p => {
-            allTracks += `      <trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>\n`;
-        });
+        r.points.forEach(p => { allTracks += `      <trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>\n`; });
         allTracks += `    </trkseg>\n  </trk>\n`;
     });
-
     const fullGpx = gpxHeader + allTracks + gpxFooter;
     const blob = new Blob([fullGpx], {type:'application/gpx+xml'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `all_routes_${Date.now()}.gpx`;
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `all_routes_${Date.now()}.gpx`; a.click();
     showToast(`Скачано ${routeHistory.length} маршрутов в одном файле .gpx`);
 }
 
-// ========== ИМПОРТ GPX ==========
-function importGPX() {
-    // Ты уже добавил этот input в HTML ранее, просто вызываем его клик
-    document.getElementById('gpx-import-input').click();
+function importGPX() { document.getElementById('gpx-import-input').click(); }
+function exportGPX(id) {
+    const r = routeHistory.find(x=>x.id===id); if(!r) return;
+    let gpx = `<?xml version="1.0"?><gpx><trk><name>${r.date}</name><trkseg>`;
+    r.points.forEach(p => { gpx += `<trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>`; });
+    gpx += `</trkseg></trk></gpx>`;
+    const blob = new Blob([gpx], {type:'application/gpx+xml'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `route_${r.id}.gpx`; a.click();
 }
 
-// ========== УДАЛЕНИЕ НЕСКОЛЬКИХ МАРШРУТОВ ==========
-// Функции toggleMultiDeleteMode, addDeleteSelectedButton и deleteSelectedRoutes 
-// уже есть в твоем коде и работают. Убедись, что в HTML есть кнопка вызова:
-// <button class="save-btn" onclick="toggleMultiDeleteMode()">✏️ Выбрать несколько маршрутов</button>
-function exportGPX(id) { const r = routeHistory.find(x=>x.id===id); if(!r) return; let gpx = `<?xml version="1.0"?><gpx><trk><name>${r.date}</name><trkseg>`; r.points.forEach(p => { gpx += `<trkpt lat="${p.lat}" lon="${p.lng}"><ele>${p.alt||0}</ele></trkpt>`; }); gpx += `</trkseg></trk></gpx>`; const blob = new Blob([gpx], {type:'application/gpx+xml'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `route_${r.id}.gpx`; a.click(); }
-
-function openStatsFromSidebar() { toggleSidebar(); document.getElementById('stats-sidebar').classList.remove('hidden'); document.getElementById('stats-content').style.display = 'block'; const stats = document.getElementById('stats-summary'); const totalKm = routeHistory.reduce((sum, r) => sum + r.distance, 0); const totalCal = routeHistory.reduce((sum, r) => sum + r.calories, 0); const avgSpeedAll = routeHistory.length>0 ? (routeHistory.reduce((s,r)=>s+r.avgSpeed,0)/routeHistory.length) : 0; const lastRide = routeHistory.length>0 ? routeHistory[routeHistory.length-1] : null; stats.innerHTML = `<div class="stat"><span>${totalKm.toFixed(0)}</span>${t('km')} всего</div><div class="stat"><span>${routeHistory.length}</span>Поездок</div><div class="stat"><span>${totalCal}</span>Ккал</div><div class="stat"><span>${avgSpeedAll.toFixed(1)}</span>Ср. скорость</div><div class="stat"><span>${lastRide ? lastRide.distance.toFixed(1) : 0}</span>Последний</div>`; updateHistoryUI(); }
+// --- СТАТИСТИКА ---
+function openStatsFromSidebar() {
+    toggleSidebar();
+    document.getElementById('stats-sidebar').classList.remove('hidden');
+    document.getElementById('stats-content').style.display = 'block';
+    const stats = document.getElementById('stats-summary');
+    const totalKm = routeHistory.reduce((sum, r) => sum + r.distance, 0);
+    const totalCal = routeHistory.reduce((sum, r) => sum + r.calories, 0);
+    const avgSpeedAll = routeHistory.length>0 ? (routeHistory.reduce((s,r)=>s+r.avgSpeed,0)/routeHistory.length) : 0;
+    const lastRide = routeHistory.length>0 ? routeHistory[routeHistory.length-1] : null;
+    stats.innerHTML = `
+        <div class="stat"><span>${totalKm.toFixed(0)}</span>${t('km')} всего</div>
+        <div class="stat"><span>${routeHistory.length}</span>Поездок</div>
+        <div class="stat"><span>${totalCal}</span>Ккал</div>
+        <div class="stat"><span>${avgSpeedAll.toFixed(1)}</span>Ср. скорость</div>
+        <div class="stat"><span>${lastRide ? lastRide.distance.toFixed(1) : 0}</span>Последний</div>
+    `;
+    updateHistoryUI();
+}
 function closeStats() { document.getElementById('stats-sidebar').classList.add('hidden'); }
 
-function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.remove('hidden'); clearTimeout(toast._timeout); toast._timeout = setTimeout(() => toast.classList.add('hidden'), 2500); }
+// --- УТИЛИТЫ ---
+function showToast(msg) {
+    const toast = document.getElementById('toast'); toast.textContent = msg;
+    toast.classList.remove('hidden'); clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.classList.add('hidden'), 2500);
+}
 function closeModal() { document.getElementById('finish-modal').classList.add('hidden'); }
-function shareScreenshot() { html2canvas(document.getElementById('map')).then(canvas => { const a = document.createElement('a'); a.download = 'my_ride.png'; a.href = canvas.toDataURL('image/png'); a.click(); }); }
+function shareScreenshot() {
+    html2canvas(document.getElementById('map')).then(canvas => {
+        const a = document.createElement('a'); a.download = 'my_ride.png'; a.href = canvas.toDataURL('image/png'); a.click();
+    });
+}
 function resetApp() { if(confirm('Сбросить все настройки и данные?')) { localStorage.clear(); location.reload(); } }
 
-// ========== ИНТЕГРАЦИИ ==========
+// --- ИНТЕГРАЦИИ И SOS ---
 function shareCurrentRoute() {
     if (points.length < 2) return showToast('Сначала запиши или нарисуй маршрут');
     const text = `Мой маршрут: ${totalDistance.toFixed(1)} км за ${formatTime(elapsedSeconds)}!`;
     if (navigator.share) {
         navigator.share({ title: 'Мой вело-маршрут', text: text }).catch(() => {});
     } else {
-        // Если браузер не поддерживает Web Share API, копируем в буфер
         navigator.clipboard.writeText(text + ' (Скопируй координаты маршрута)');
         showToast('Текст скопирован в буфер!');
     }
@@ -392,6 +676,7 @@ function importBackup(event) {
     };
     reader.readAsText(file);
 }
+
 function triggerSOS() {
     const contact = userSettings.sosContact || '';
     const action = confirm(`Вызвать SOS?\n\nНажми "OK", чтобы позвонить по номеру ${contact || 'не указан'}\nНажми "Отмена", чтобы отправить координаты через мессенджер.`);
@@ -420,7 +705,8 @@ function triggerSOS() {
         }
     }
 }
-// --- Мультиудаление ---
+
+// --- МУЛЬТИУДАЛЕНИЕ ---
 let isMultiDeleteMode = false;
 function toggleMultiDeleteMode() {
     isMultiDeleteMode = !isMultiDeleteMode;
@@ -493,10 +779,73 @@ function calculateAchievements(history) {
     ];
 }
 
-// --- Инициализация ---
+// --- ИНИЦИАЛИЗАЦИЯ ---
 window.onload = function() {
     applySettings();
     const odoEl = document.getElementById('odo-display');
     if(odoEl) odoEl.textContent = odoTotal.toFixed(0);
     updateProgressBar();
 };
+
+// --- НОВАЯ ФУНКЦИЯ: ПЕРЕКЛЮЧЕНИЕ КАРТЫ ВЫСОТ ---
+let elevationLayerEnabled = false;
+function toggleElevationLayer() {
+    elevationLayerEnabled = !elevationLayerEnabled;
+    const legend = document.getElementById('elevation-legend');
+    const icon = document.getElementById('elevation-icon');
+    const label = document.getElementById('elevation-label');
+    if (elevationLayerEnabled) {
+        legend.style.display = 'flex';
+        icon.textContent = '⛰️✅';
+        label.textContent = 'Высоты: вкл';
+        // Здесь можно перерисовать текущий маршрут с цветами высот
+        if (points.length > 0) drawRouteWithElevation(points);
+    } else {
+        legend.style.display = 'none';
+        icon.textContent = '⛰️';
+        label.textContent = 'Высоты';
+        // Вернуть обычный маршрут
+        if (points.length > 0) drawRoute();
+    }
+}
+
+function drawRouteWithElevation(routePoints) {
+    if(routeLine) map.geoObjects.remove(routeLine);
+    if(routePoints.length < 2) return;
+    const coords = routePoints.map(p => [p.lat, p.lng]);
+    // Разбиваем линию на сегменты с цветами
+    routeLine = new ymaps.Polyline(coords, {
+        strokeColor: userSettings.color,
+        strokeWidth: userSettings.lineWidth || 4,
+        strokeOpacity: 0.9
+    });
+    // Для цветных сегментов используем мультилинию
+    const segments = [];
+    for (let i = 0; i < routePoints.length - 1; i++) {
+        const p1 = routePoints[i], p2 = routePoints[i+1];
+        const diff = (p2.alt || 0) - (p1.alt || 0);
+        let color;
+        if (diff > 2) color = '#ff5050';      // подъём
+        else if (diff < -2) color = '#50ff50'; // спуск
+        else color = '#6496ff';                // ровно
+        segments.push({
+            coordinates: [[p1.lat, p1.lng], [p2.lat, p2.lng]],
+            color: color
+        });
+    }
+    // Создаём мультилинию
+    const multiRoute = new ymaps.MultiRoute({
+        referencePoints: [],
+        params: { viaPoints: false }
+    });
+    // Заменяем стандартную отрисовку на сегменты
+    // Просто добавляем все сегменты как отдельные полилинии
+    segments.forEach(seg => {
+        const poly = new ymaps.Polyline(seg.coordinates, {
+            strokeColor: seg.color,
+            strokeWidth: userSettings.lineWidth || 4,
+            strokeOpacity: 0.9
+        });
+        map.geoObjects.add(poly);
+    });
+}
