@@ -619,6 +619,30 @@ function drawHeightChart(route) {
     ctx.textBaseline = 'bottom';
     ctx.fillText(`⬆ ${Math.round(ascent)}м  ⬇ ${Math.round(descent)}м`, canvas.width - pad, legendY);
 }
+// --- Переключатель карты высот (исправление) ---
+let elevationLayerEnabled = false;
+function toggleElevationLayer() {
+    // Удаляем старые сегменты при переключении
+    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
+    elevationSegments = [];
+
+    elevationLayerEnabled = !elevationLayerEnabled;
+    const legend = document.getElementById('elevation-legend');
+    const icon = document.getElementById('elevation-icon');
+    const label = document.getElementById('elevation-label');
+    
+    if (elevationLayerEnabled) {
+        legend.style.display = 'flex';
+        icon.textContent = '⛰️✅';
+        label.textContent = 'Высоты: вкл';
+        if (points.length > 0) drawRouteWithElevation(points);
+    } else {
+        legend.style.display = 'none';
+        icon.textContent = '⛰️';
+        label.textContent = 'Высоты';
+        if (points.length > 0) drawRoute();
+    }
+}
 // --- ПОГОДА И ГЕОКОДИНГ ---
 function updateWeather() {
     if(!navigator.geolocation) return;
