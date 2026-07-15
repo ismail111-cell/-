@@ -95,7 +95,7 @@ function getTabHTML(tab) {
         }, 0);
         html += `<label>Цель на сегодня (км)</label><input type="number" id="s-dailygoal" value="${s.dailyGoal || 0}"><button class="save-btn" onclick="saveSettingsTab('training')">💾 Сохранить цель</button><hr><h4>📈 Прогресс за сегодня</h4><p>Проехано: <span id="today-distance">0</span> км</p><div style="background:#222; height:10px; border-radius:5px; width:100%;"><div id="progress-bar" style="background:var(--accent-grad); height:100%; border-radius:5px; width:0%;"></div></div><hr><h4>🏆 Личные рекорды</h4><p>Самая длинная поездка: <b>${bestDistance.toFixed(1)} км</b></p><p>Максимальная средняя скорость: <b>${bestAvgSpeed.toFixed(1)} км/ч</b></p><p>Суммарный набор высоты: <b>${totalClimb.toFixed(0)} м</b></p><p>Всего калорий: <b>${totalCal.toFixed(0)} ккал</b></p>`;
     }
-        } else if(tab === 'achievements') {
+        else if(tab === 'achievements') {
         const achievements = calculateAchievements(routeHistory);
         html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
         achievements.forEach(ach => {
