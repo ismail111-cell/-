@@ -8,7 +8,8 @@ const LANG = {
         profile: "Мой профиль", map: "Карта и отображение", interface: "Интерфейс и темы",
         sound: "Звук и голос", training: "Тренировки и мотивация", weather: "Погода и окружение",
         history_tab: "История и данные", achievements: "Достижения", integrations: "Интеграции",
-        system: "Система и безопасность"
+        system: "Система и безопасность", elevation: "Высоты", ascent: "Подъём", descent: "Спуск", flat: "Ровно"
+        
     },
     en: {
         speed: "Speed", distance: "Distance", time: "Time", total_km: "Total km",
@@ -19,7 +20,7 @@ const LANG = {
         profile: "My Profile", map: "Map & Display", interface: "Interface & Themes",
         sound: "Sound & Voice", training: "Training & Motivation", weather: "Weather & Environment",
         history_tab: "History & Data", achievements: "Achievements", integrations: "Integrations",
-        system: "System & Security"
+        system: "System & Security", elevation: "Elevation", ascent: "Ascent", descent: "Descent", flat: "Flat"
     },
     ar: {
         speed: "السرعة", distance: "المسافة", time: "الوقت", total_km: "إجمالي كم",
@@ -30,7 +31,7 @@ const LANG = {
         profile: "ملفي الشخصي", map: "الخريطة والعرض", interface: "الواجهة والمظاهر",
         sound: "الصوت والصوتيات", training: "التدريب والدافع", weather: "الطقس والبيئة",
         history_tab: "التاريخ والبيانات", achievements: "الإنجازات", integrations: "التكاملات",
-        system: "النظام والأمان"
+        system: "النظام والأمان", elevation: "الارتفاع", ascent: "صعود", descent: "هبوط", flat: "مستو"
     }
 };
 
