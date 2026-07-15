@@ -701,7 +701,68 @@ function drawHeightChart(route) {
     ctx.textBaseline = 'bottom';
     ctx.fillText(`⬆ ${Math.round(ascent)}м  ⬇ ${Math.round(descent)}м`, canvas.width - pad, legendY);
 }
+// --- ПЕРЕКЛЮЧАТЕЛЬ КАРТЫ ВЫСОТ (ИСПРАВЛЕНИЕ) ---
+let elevationLayerEnabled = false;
+function toggleElevationLayer() {
+    // Удаляем старые сегменты при переключении
+    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
+    elevationSegments = [];
 
+    elevationLayerEnabled = !elevationLayerEnabled;
+    const legend = document.getElementById('elevation-legend');
+    const icon = document.getElementById('elevation-icon');
+    const label = document.getElementById('elevation-label');
+    
+    if (elevationLayerEnabled) {
+        legend.style.display = 'flex';
+        icon.textContent = '⛰️✅';
+        label.textContent = 'Высоты: вкл';
+        if (points.length > 0) drawRouteWithElevation(points);
+    } else {
+        legend.style.display = 'none';
+        icon.textContent = '⛰️';
+        label.textContent = 'Высоты';
+        if (points.length > 0) drawRoute();
+    }
+}
+
+function drawRouteWithElevation(routePoints) {
+    // Убираем обычную линию, если она есть
+    if(routeLine) map.geoObjects.remove(routeLine);
+    if(routePoints.length < 2) return;
+
+    // Очищаем старые сегменты перед новой отрисовкой
+    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
+    elevationSegments = [];
+
+    // Проверяем, есть ли данные о высоте
+    let hasElevation = false;
+    for (let i = 0; i < routePoints.length; i++) {
+        if (routePoints[i].alt && routePoints[i].alt !== 0) hasElevation = true;
+    }
+    if (!hasElevation) {
+        showToast('Нет данных о высоте. Запиши маршрут через GPS или добавь высоты вручную.');
+        return;
+    }
+
+    // Рисуем цветные сегменты (подъём – красный, спуск – зелёный, ровно – синий)
+    for (let i = 0; i < routePoints.length - 1; i++) {
+        const p1 = routePoints[i], p2 = routePoints[i+1];
+        const diff = (p2.alt || 0) - (p1.alt || 0);
+        let color;
+        if (diff > 2) color = '#ff5050';      // подъём
+        else if (diff < -2) color = '#50ff50'; // спуск
+        else color = '#6496ff';                // ровно (если разница меньше 2 метров)
+
+        const poly = new ymaps.Polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+            strokeColor: color,
+            strokeWidth: userSettings.lineWidth || 4,
+            strokeOpacity: 0.9
+        });
+        map.geoObjects.add(poly);
+        elevationSegments.push(poly); // запоминаем, чтобы потом удалить
+    }
+}
 // --- ПОГОДА ---
 function updateWeather() {
     if(!navigator.geolocation) return;
