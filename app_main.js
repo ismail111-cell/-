@@ -1,5 +1,6 @@
 // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
 let map, routeLine;
+let myPlacemark = null; // метка "Я" для текущего местоположения
 let elevationSegments = []; // для хранения сегментов карты высот
 let isRecording = false, isPaused = false, isManualMode = false, isSplash = true;
 let points = [], timerInterval, elapsedSeconds = 0;
@@ -20,11 +21,65 @@ const MOTIVATION = {
     ar: ["أنت آلة! استمر!","5 كم خلفك، نبضك طبيعي، تابع!","سرعة قياسية! الرياح صديقتك اليوم.","إيقاع رائع، لا تبطئ!","القليل وسنغزو قمة جديدة!","جميل! لقد خلقت للدراجات.","10 كم! الهدف قريب، دوّس بقوة!","واو، أنت تطير! رائع!"]
 };
 
+// --- ИНИЦИАЛИЗАЦИЯ КАРТЫ С ЦЕНТРИРОВАНИЕМ ПО GPS И МЕТКОЙ "Я" ---
 ymaps.ready(function() {
-    map = new ymaps.Map('map', { center: [55.7961, 49.1064], zoom: 13, controls: ['zoomControl'] });
+    // Сначала создаём карту с центром по умолчанию (Казань) и тёмной темой
+    map = new ymaps.Map('map', {
+        center: [55.7961, 49.1064],
+        zoom: 13,
+        controls: ['zoomControl', 'geolocationControl'],
+        // Включаем тёмную тему (если поддерживается)
+        behaviors: ['default', 'scrollZoom']
+    });
+    // Применяем тёмную тему, если пользователь выбрал тёмную тему
+    if (userSettings.theme === 'dark') {
+        map.setType('yandex#map');
+        // Для тёмной темы карты используем специальный стиль через CSS
+        document.getElementById('map').style.filter = 'invert(0.9) hue-rotate(180deg)';
+    } else {
+        document.getElementById('map').style.filter = 'none';
+    }
+
+    // Добавляем кнопку геолокации
     map.controls.add('geolocationControl', { float: 'left' });
+
+    // Создаём метку "Я" (будет обновляться при получении GPS)
+    myPlacemark = new ymaps.Placemark([55.7961, 49.1064], {
+        iconContent: 'Я'
+    }, {
+        preset: 'islands#blueStretchyIcon',
+        iconColor: '#00cc99'
+    });
+    map.geoObjects.add(myPlacemark);
+
+    // Пытаемся определить текущее местоположение и центрировать карту
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            // Обновляем метку и центрируем карту
+            myPlacemark.geometry.setCoordinates([lat, lng]);
+            map.setCenter([lat, lng], 15, { duration: 500 });
+        }, function(err) {
+            console.warn('Не удалось определить местоположение:', err);
+            // Если GPS недоступен, оставляем Казань
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
+    // Обработчик кликов для маршрутизации (проверяет флаг isRoutingMode)
+    map.events.add('click', function(e) {
+        if (isRoutingMode) {
+            const coords = e.get('coords');
+            addRoutingPoint(coords[0], coords[1]);
+            document.getElementById('routing-points-count').textContent = `Точек: ${routingPoints.length}`;
+        }
+    });
+
+    // Загрузка сохранённых POI (если есть)
+    loadPOIs();
 });
 
+// --- ФУНКЦИИ ВХОДА И НАВИГАЦИИ ---
 function enterApp() {
     document.getElementById('splash-screen').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
@@ -62,6 +117,7 @@ function openSettingsTab(tab) {
     content.style.display = 'flex'; content.innerHTML = getTabHTML(tab);
 }
 
+// --- НАЧАЛО getTabHTML (профиль, карта, звук, погода, история, система, интерфейс, тренировки) ---
 function getTabHTML(tab) {
     const s = userSettings; let html = `<button class="back-btn" onclick="closeSettingsTab()">◀ Назад</button><h3 style="margin-bottom:10px;">${t(tab)}</h3>`;
     if(tab === 'profile') {
@@ -94,8 +150,7 @@ function getTabHTML(tab) {
             return sum + climb;
         }, 0);
         html += `<label>Цель на сегодня (км)</label><input type="number" id="s-dailygoal" value="${s.dailyGoal || 0}"><button class="save-btn" onclick="saveSettingsTab('training')">💾 Сохранить цель</button><hr><h4>📈 Прогресс за сегодня</h4><p>Проехано: <span id="today-distance">0</span> км</p><div style="background:#222; height:10px; border-radius:5px; width:100%;"><div id="progress-bar" style="background:var(--accent-grad); height:100%; border-radius:5px; width:0%;"></div></div><hr><h4>🏆 Личные рекорды</h4><p>Самая длинная поездка: <b>${bestDistance.toFixed(1)} км</b></p><p>Максимальная средняя скорость: <b>${bestAvgSpeed.toFixed(1)} км/ч</b></p><p>Суммарный набор высоты: <b>${totalClimb.toFixed(0)} м</b></p><p>Всего калорий: <b>${totalCal.toFixed(0)} ккал</b></p>`;
-    }
-        else if(tab === 'achievements') {
+        } else if(tab === 'achievements') {
         const achievements = calculateAchievements(routeHistory);
         html += `<h4>🏅 Мои достижения</h4><div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;">`;
         achievements.forEach(ach => {
@@ -125,6 +180,37 @@ function getTabHTML(tab) {
             <button class="save-btn" onclick="document.getElementById('json-import-input').click()">📂 Загрузить бэкап</button>
             <input type="file" id="json-import-input" accept=".json" style="display:none;" onchange="importBackup(event)">
         `;
+    } else if(tab === 'routing') {
+        html += `
+            <h4>🚴 Маршрутизация (OSRM)</h4>
+            <p style="font-size:13px; opacity:0.8;">Строить маршруты с промежуточными точками и цветной картой высот.</p>
+            <button class="save-btn" onclick="openRouting()">🗺️ Открыть планировщик</button>
+        `;
+    } else if(tab === 'poi') {
+        // Вкладка для управления сохранёнными точками (POI)
+        const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
+        html += `<h4>📍 Мои точки (POI)</h4><p style="font-size:13px; opacity:0.8;">Сохраняй важные места и строй через них маршруты.</p>`;
+        if (pois.length === 0) {
+            html += `<p style="opacity:0.6;">У тебя пока нет сохранённых точек. Нажми "Добавить точку" на карте в режиме маршрутизации.</p>`;
+        } else {
+            html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+            pois.forEach((poi, idx) => {
+                html += `
+                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b>${poi.name || 'Без названия'}</b>
+                            <div style="font-size:12px; opacity:0.6;">${poi.lat.toFixed(5)}, ${poi.lng.toFixed(5)}</div>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="save-btn" onclick="buildRouteToPOI(${idx})">🚴 Построить</button>
+                            <button class="save-btn red-text" onclick="deletePOI(${idx})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+        html += `<button class="save-btn" onclick="addPOI()">➕ Добавить точку на карте</button>`;
     } else {
         html += `<p>Настройки для этой вкладки в разработке</p>`;
     }
@@ -175,7 +261,6 @@ function saveSettingsTab(tab) {
     showToast('Настройки сохранены!');
     closeSettingsTab();
 }
-
 function toggleMapLayer(layer) {
     if(!map) return;
     map.setType(layer === 'satellite' ? 'yandex#satellite' : 'yandex#map');
@@ -190,6 +275,22 @@ function applySettings() {
     document.getElementById('top-panel').className = 'font-' + (s.fontSize || 'medium');
     applyLanguage();
     if (s.layer) toggleMapLayer(s.layer);
+
+    // Управление видимостью SOS-кнопки
+    const sosBtn = document.getElementById('sos-btn');
+    if(sosBtn) {
+        sosBtn.style.display = s.sos ? 'flex' : 'none';
+    }
+
+    // Применяем тёмную тему для карты, если выбрана тёмная тема
+    const mapElement = document.getElementById('map');
+    if (mapElement) {
+        if (s.theme === 'dark') {
+            mapElement.style.filter = 'invert(0.9) hue-rotate(180deg)';
+        } else {
+            mapElement.style.filter = 'none';
+        }
+    }
 }
 
 function applyLanguage() {
@@ -210,6 +311,7 @@ function updateProgressBar() {
     const bar = document.getElementById('progress-bar');
     if(bar) bar.style.width = progress + '%';
 }
+
 // --- ЗАПИСЬ GPS ---
 function startRecording() {
     if(isRecording) return;
@@ -235,6 +337,12 @@ function startRecording() {
             currentSpeed = pos.coords.speed * 3.6 || 0;
             if(currentSpeed > maxSpeed) maxSpeed = currentSpeed;
             document.getElementById('speed-display').textContent = currentSpeed.toFixed(1);
+            
+            // Обновляем метку "Я" при каждом обновлении GPS
+            if(myPlacemark) {
+                myPlacemark.geometry.setCoordinates([lat, lng]);
+            }
+
             if(points.length > 0) {
                 const last = points[points.length - 1];
                 const d = haversine(last.lat, last.lng, lat, lng);
@@ -251,6 +359,10 @@ function startRecording() {
         (err) => console.warn(err),
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
     );
+    // Очищаем очередь перед новым голосом
+    if('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
     speakText(t('start'));
 }
 
@@ -265,7 +377,6 @@ function drawRoute() {
     });
     map.geoObjects.add(routeLine);
 }
-
 // --- МОТИВАЦИЯ И ГОЛОС ---
 let lastMotivationKm = 0;
 function checkMotivation() {
@@ -274,6 +385,10 @@ function checkMotivation() {
     if(totalDistance - lastMotivationKm >= freq) {
         lastMotivationKm = totalDistance;
         const phrase = `Проехал ${totalDistance.toFixed(0)} километров!`;
+        // Очищаем очередь перед новым голосом
+        if('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
         speakText(phrase);
     }
 }
@@ -308,6 +423,8 @@ function enableManualDraw() {
         document.getElementById('btn-manual').style.background = '#ffb700';
         document.getElementById('btn-undo').style.display = 'flex';
         document.getElementById('btn-clear').style.display = 'flex';
+        // Сначала удаляем старый обработчик, чтобы не было дублей
+        map.events.remove('click');
         map.events.add('click', (e) => {
             const coords = e.get('coords');
             points.push({lat: coords[0], lng: coords[1], alt: 0});
@@ -325,6 +442,10 @@ function enableManualDraw() {
             }
             document.getElementById('distance-display').textContent = totalDistance.toFixed(2);
             document.getElementById('btn-save').style.display = 'flex';
+            // Очищаем очередь перед новым голосом
+            if('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
             speakText('Маршрут нарисован');
         }
     }
@@ -343,6 +464,10 @@ function togglePause(force) {
     if(!isRecording) return;
     isPaused = force !== null ? force : !isPaused;
     document.getElementById('btn-pause').textContent = isPaused ? '▶️' : '⏸';
+    // Очищаем очередь перед новым голосом
+    if('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
     if(isPaused) speakText('Пауза');
     else speakText('Продолжаем');
 }
@@ -356,6 +481,10 @@ function stopRecording() {
         document.getElementById('btn-pause').style.display = 'none';
         document.getElementById('btn-stop').style.display = 'none';
         document.getElementById('btn-save').style.display = 'flex';
+        // Очищаем очередь перед новым голосом
+        if('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
         speakText('Поездка завершена');
         showSummary();
     }
@@ -406,6 +535,7 @@ function showSummary() {
     modal.classList.remove('hidden');
 }
 
+// --- КАРТА ВЫСОТ (цветная заливка, теперь работает и для ручных) ---
 function drawHeightChart(route) {
     const canvas = document.getElementById('height-chart');
     const ctx = canvas.getContext('2d');
@@ -414,8 +544,16 @@ function drawHeightChart(route) {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     if(!route.points || route.points.length<2) return;
     const heights = route.points.map(p => p.alt || 0);
+    // Если все высоты нулевые, выводим сообщение
+    if (heights.every(h => h === 0)) {
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Нет данных о высоте (запиши через GPS)', canvas.width/2, canvas.height/2);
+        return;
+    }
     const minH = Math.min(...heights), maxH = Math.max(...heights), range = maxH-minH || 1;
-    // Цветная заливка по сегментам
     const pad = 10;
     const graphW = canvas.width - pad*2;
     const graphH = canvas.height - pad*2 - 20;
@@ -469,7 +607,6 @@ function drawHeightChart(route) {
         ctx.fillText(item.label, legendX+16, legendY);
         legendX += ctx.measureText(item.label).width + 26;
     });
-    // Подъём и спуск
     let ascent=0, descent=0;
     for (let i=1; i<heights.length; i++) {
         const diff = heights[i] - heights[i-1];
@@ -487,12 +624,12 @@ function updateWeather() {
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (pos) => {
         const {latitude, longitude} = pos.coords;
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=YOUR_OPENWEATHER_KEY`;
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=edd587a4978a7a8b772bac0871b3ed6d`;
         try {
             const resp = await fetch(url); const data = await resp.json();
             document.getElementById('weather-temp').textContent = Math.round(data.main.temp) + '°C';
             document.getElementById('weather-icon').textContent = data.weather[0].icon.includes('n') ? '🌙' : data.weather[0].icon.includes('01') ? '☀️' : '☁️';
-        } catch(e) { document.getElementById('weather-temp').textContent = '22°C'; }
+        } catch(e) { document.getElementById('weather-temp').textContent = '--°C'; }
     });
 }
 
@@ -501,7 +638,9 @@ function geocodeStreet(lat, lng) {
         const first = res.geoObjects.get(0);
         if(first) {
             const name = first.getThoroughfare() || first.getAddressLine();
-            document.getElementById('street-name').textContent = name || 'Казань';
+            document.getElementById('street-name').textContent = name || '';
+        } else {
+            document.getElementById('street-name').textContent = '';
         }
     });
 }
@@ -788,55 +927,234 @@ window.onload = function() {
     updateProgressBar();
 };
 
-// --- НОВАЯ ФУНКЦИЯ: ПЕРЕКЛЮЧЕНИЕ КАРТЫ ВЫСОТ ---
-let elevationLayerEnabled = false;
-function toggleElevationLayer() {
-    // Удаляем старые сегменты при переключении
-    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
-    elevationSegments = [];
+// ============================================================
+//  МАРШРУТИЗАЦИЯ (OSRM) И POI
+// ============================================================
 
-    elevationLayerEnabled = !elevationLayerEnabled;
-    const legend = document.getElementById('elevation-legend');
-    const icon = document.getElementById('elevation-icon');
-    const label = document.getElementById('elevation-label');
-    
-    if (elevationLayerEnabled) {
-        legend.style.display = 'flex';
-        icon.textContent = '⛰️✅';
-        label.textContent = 'Высоты: вкл';
-        if (points.length > 0) drawRouteWithElevation(points);
+let isRoutingMode = false;
+let routingPoints = [];
+let routingSegments = [];
+let routingPlacemarks = [];
+
+function openRouting() {
+    isRoutingMode = !isRoutingMode;
+    if(isRoutingMode) {
+        routingPoints = [];
+        document.getElementById('routing-panel').style.display = 'flex';
+        document.getElementById('bottom-controls').style.display = 'none';
+        showToast('Режим маршрутизации: кликай по карте, чтобы добавить точки. Нажми "Построить маршрут" для OSRM.');
     } else {
-        legend.style.display = 'none';
-        icon.textContent = '⛰️';
-        label.textContent = 'Высоты';
-        if (points.length > 0) drawRoute();
+        closeRouting();
     }
 }
 
-function drawRouteWithElevation(routePoints) {
-    // Убираем обычную линию, если она есть
-    if(routeLine) map.geoObjects.remove(routeLine);
-    if(routePoints.length < 2) return;
+function closeRouting() {
+    isRoutingMode = false;
+    document.getElementById('routing-panel').style.display = 'none';
+    document.getElementById('bottom-controls').style.display = 'flex';
+    routingSegments.forEach(seg => map.geoObjects.remove(seg));
+    routingSegments = [];
+    routingPlacemarks.forEach(pm => map.geoObjects.remove(pm));
+    routingPlacemarks = [];
+    routingPoints = [];
+    showToast('Режим маршрутизации закрыт');
+}
 
-    // Очищаем старые сегменты перед новой отрисовкой
-    elevationSegments.forEach(seg => map.geoObjects.remove(seg));
-    elevationSegments = [];
+function clearRouting() {
+    routingSegments.forEach(seg => map.geoObjects.remove(seg));
+    routingSegments = [];
+    routingPlacemarks.forEach(pm => map.geoObjects.remove(pm));
+    routingPlacemarks = [];
+    routingPoints = [];
+    document.getElementById('routing-points-count').textContent = 'Точек: 0';
+    document.getElementById('routing-distance').textContent = 'Дистанция: -- км';
+    document.getElementById('routing-time').textContent = 'Время: -- мин';
+    showToast('Маршрут очищен');
+}
 
-    // Рисуем цветные сегменты
-    for (let i = 0; i < routePoints.length - 1; i++) {
-        const p1 = routePoints[i], p2 = routePoints[i+1];
-        const diff = (p2.alt || 0) - (p1.alt || 0);
-        let color;
-        if (diff > 2) color = '#ff5050';      // подъём
-        else if (diff < -2) color = '#50ff50'; // спуск
-        else color = '#6496ff';                // ровно
+function addRoutingPoint(lat, lng) {
+    routingPoints.push({lat, lng});
+    const placemark = new ymaps.Placemark([lat, lng], {
+        iconContent: String(routingPoints.length)
+    }, {
+        preset: 'islands#blueStretchyIcon'
+    });
+    map.geoObjects.add(placemark);
+    routingPlacemarks.push(placemark);
+    document.getElementById('routing-points-count').textContent = `Точек: ${routingPoints.length}`;
+}
 
-        const poly = new ymaps.Polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
-            strokeColor: color,
-            strokeWidth: userSettings.lineWidth || 4,
-            strokeOpacity: 0.9
+function buildRouteFromRouting() {
+    if(routingPoints.length < 2) { showToast('Добавь минимум 2 точки'); return; }
+    const coordsStr = routingPoints.map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/bicycle/${coordsStr}?overview=full&alternatives=true&geometries=geojson`;
+    showToast('Ищем маршрут...');
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if(!data.routes || data.routes.length === 0) {
+                showToast('Маршрут не найден');
+                return;
+            }
+            routingSegments.forEach(seg => map.geoObjects.remove(seg));
+            routingSegments = [];
+            const colors = ['#00cc99', '#3b82f6', '#f59e0b'];
+            data.routes.slice(0, 3).forEach((route, idx) => {
+                const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                const poly = new ymaps.Polyline(coords, {
+                    strokeColor: colors[idx % colors.length],
+                    strokeWidth: 4,
+                    strokeOpacity: 0.8
+                });
+                map.geoObjects.add(poly);
+                routingSegments.push(poly);
+                const dist = (route.distance / 1000).toFixed(1);
+                const dur = Math.round(route.duration / 60);
+                if(idx === 0) {
+                    document.getElementById('routing-distance').textContent = `Дистанция: ${dist} км`;
+                    document.getElementById('routing-time').textContent = `Время: ${dur} мин`;
+                }
+            });
+            if(data.routes.length > 0) {
+                const bounds = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                map.setBounds(bounds, {checkZoomRange: true, duration: 500});
+            }
+            showToast(`Найдено ${data.routes.length} маршрута(ов)`);
+        })
+        .catch(err => showToast('Ошибка OSRM: ' + err.message));
+}
+
+function saveRoutingRoute() {
+    if(routingPoints.length < 2) { showToast('Нет маршрута для сохранения'); return; }
+    const route = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        points: routingPoints,
+        distance: 0,
+        time: 0,
+        avgSpeed: 0,
+        maxSpeed: 0,
+        calories: 0,
+        color: userSettings.color,
+        weather: 'Спланированный маршрут',
+        layer: userSettings.layer
+    };
+    routeHistory.push(route);
+    localStorage.setItem('bike_routes', JSON.stringify(routeHistory));
+    updateHistoryUI();
+    showToast('Маршрут сохранён!');
+}
+
+// --- POI (Точки интереса) ---
+function loadPOIs() {
+    const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
+    pois.forEach(poi => {
+        const placemark = new ymaps.Placemark([poi.lat, poi.lng], {
+            iconContent: poi.name || '📍',
+            balloonContent: poi.name || 'Точка'
+        }, {
+            preset: 'islands#redStretchyIcon'
         });
-        map.geoObjects.add(poly);
-        elevationSegments.push(poly); // запоминаем, чтобы потом удалить
+        map.geoObjects.add(placemark);
+    });
+}
+
+function addPOI() {
+    showToast('Кликни на карте, чтобы добавить точку (POI)');
+    // Временно добавляем обработчик клика
+    const clickHandler = function(e) {
+        const coords = e.get('coords');
+        const lat = coords[0], lng = coords[1];
+        const name = prompt('Введите название точки:', 'Моя точка');
+        if(name !== null) {
+            const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
+            pois.push({lat, lng, name: name.trim() || 'Без названия'});
+            localStorage.setItem('bike_pois', JSON.stringify(pois));
+            // Перезагружаем POI на карте
+            map.geoObjects.each(obj => {
+                if(obj && obj.properties && obj.properties.get('iconContent') === '📍') {
+                    map.geoObjects.remove(obj);
+                }
+            });
+            loadPOIs();
+            showToast('Точка добавлена!');
+        }
+        map.events.remove('click', clickHandler);
+    };
+    map.events.add('click', clickHandler);
+}
+
+function deletePOI(index) {
+    if(!confirm('Удалить эту точку?')) return;
+    const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
+    pois.splice(index, 1);
+    localStorage.setItem('bike_pois', JSON.stringify(pois));
+    // Перезагружаем POI на карте
+    map.geoObjects.each(obj => {
+        if(obj && obj.properties && obj.properties.get('iconContent') === '📍') {
+            map.geoObjects.remove(obj);
+        }
+    });
+    loadPOIs();
+    showToast('Точка удалена');
+    // Обновляем вкладку POI в настройках
+    document.getElementById('settings-tab-content').innerHTML = getTabHTML('poi');
+}
+
+function buildRouteToPOI(index) {
+    const pois = JSON.parse(localStorage.getItem('bike_pois')) || [];
+    if(index >= pois.length) { showToast('Точка не найдена'); return; }
+    const poi = pois[index];
+    // Определяем текущее положение как старт (если есть GPS)
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const startLat = pos.coords.latitude;
+            const startLng = pos.coords.longitude;
+            routingPoints = [{lat: startLat, lng: startLng}, {lat: poi.lat, lng: poi.lng}];
+            openRouting();
+            // Добавляем точки на карту
+            routingPoints.forEach(p => addRoutingPoint(p.lat, p.lng));
+            // Строим маршрут
+            buildRouteFromRouting();
+        }, () => {
+            showToast('Не удалось определить местоположение');
+        });
+    } else {
+        showToast('GPS недоступен');
     }
 }
+
+// --- TELEGRAM-ИНТЕГРАЦИЯ (Web App и отправка) ---
+function shareToTelegram() {
+    if(!window.Telegram?.WebApp) {
+        showToast('Это приложение не внутри Telegram');
+        return;
+    }
+    if(points.length < 2) {
+        showToast('Сначала запиши или нарисуй маршрут');
+        return;
+    }
+    const text = `Мой маршрут: ${totalDistance.toFixed(1)} км за ${formatTime(elapsedSeconds)}!`;
+    try {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+            type: 'route',
+            distance: totalDistance,
+            time: elapsedSeconds,
+            points: points
+        }));
+        showToast('Отправлено в Telegram!');
+    } catch(e) {
+        showToast('Ошибка отправки: ' + e.message);
+    }
+}
+
+// --- ОБРАБОТЧИК TELEGRAM WEB APP (если запущено внутри бота) ---
+if(window.Telegram?.WebApp) {
+    window.Telegram.WebApp.ready();
+    // Показываем кнопку отправки
+    const shareBtn = document.getElementById('telegram-share');
+    if(shareBtn) shareBtn.style.display = 'block';
+    // Можно также отправлять данные при сохранении маршрута
+}
+
+// --- КОНЕЦ ФАЙЛА ---
